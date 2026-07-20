@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "aurora",
+  "order": 20,
+  "name": "Aurora Glass",
+  "description": "青蓝极光、冷静高对比，突出连接状态与数据层级。",
+  "preview": ["#0b1c20", "#173238", "#35c6b2"],
+  "effects": { "glowPrimary": "#35c6b2", "glowSecondary": "#3b82f6", "glowStrength": 0.18, "motionIntensity": 0.76 },
+  "dark": {
+    "windowBackground": "#071417", "canvas": "#0b1c20", "surface": "#10272b", "elevatedSurface": "#173238",
+    "text": "#e8fcfb", "mutedText": "#91b8b9", "accent": "#35c6b2",
+    "terminalBackground": "#07191c", "terminalForeground": "#dcf8f6", "terminalCursor": "#5be0ca",
+    "ansi": { "red": "#ff7f8e", "green": "#45d59b", "yellow": "#f0c96b", "blue": "#4bb8ff", "magenta": "#ae8cff", "cyan": "#38d6d0" }
+  },
+  "light": {
+    "windowBackground": "#e4efef", "canvas": "#edf7f6", "surface": "#f7fbfa", "elevatedSurface": "#ffffff",
+    "text": "#17383a", "mutedText": "#5c797b", "accent": "#078f85",
+    "terminalBackground": "#f7fcfb", "terminalForeground": "#16383a", "terminalCursor": "#078f85",
+    "ansi": { "red": "#ca3d53", "green": "#178a5a", "yellow": "#966b00", "blue": "#1579b9", "magenta": "#7553ad", "cyan": "#087f82" }
+  }
+}

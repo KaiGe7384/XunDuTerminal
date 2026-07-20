@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+      - run: npm ci
+      - name: Verify source
+        run: npm run check
+      - name: Build and create draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: XunDuTerminal ${{ github.ref_name }}
+          releaseBody: See CHANGELOG.md for release notes. Verify downloads with SHA256SUMS.txt.
+          releaseDraft: true
+          prerelease: true
+      - name: Generate SHA256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem src-tauri/target/release/bundle -Recurse -File |
+            Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } |
+            Set-Content SHA256SUMS.txt
+          gh release upload $env:GITHUB_REF_NAME SHA256SUMS.txt --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

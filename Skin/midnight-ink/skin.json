@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "midnight-ink",
+  "order": 50,
+  "name": "Midnight Ink",
+  "description": "深蓝墨色与电光青，强调沉浸、专注和代码层级。",
+  "preview": ["#0b1220", "#18263b", "#4da3ff"],
+  "effects": { "glowPrimary": "#4da3ff", "glowSecondary": "#4dd6c7", "glowStrength": 0.16, "motionIntensity": 0.78 },
+  "dark": {
+    "windowBackground": "#070b13", "canvas": "#0b1220", "surface": "#111c2e", "elevatedSurface": "#18263b",
+    "text": "#e7eefc", "mutedText": "#8da0bd", "accent": "#4da3ff",
+    "terminalBackground": "#070d18", "terminalForeground": "#dce8fa", "terminalCursor": "#79bbff",
+    "ansi": { "red": "#ff7182", "green": "#49cd91", "yellow": "#e5bd63", "blue": "#4da3ff", "magenta": "#b38cff", "cyan": "#45cbd2" }
+  },
+  "light": {
+    "windowBackground": "#e4e9f2", "canvas": "#eef3fa", "surface": "#f7f9fd", "elevatedSurface": "#ffffff",
+    "text": "#1a2940", "mutedText": "#62738c", "accent": "#1765c1",
+    "terminalBackground": "#f7faff", "terminalForeground": "#1a2940", "terminalCursor": "#1765c1",
+    "ansi": { "red": "#c83d52", "green": "#218253", "yellow": "#916500", "blue": "#1765c1", "magenta": "#7451a6", "cyan": "#147784" }
+  }
+}

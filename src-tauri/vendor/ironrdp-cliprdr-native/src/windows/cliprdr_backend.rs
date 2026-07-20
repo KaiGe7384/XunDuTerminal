@@ -1,0 +1,138 @@
+use std::sync::{Arc, Mutex, mpsc as mpsc_sync};
+
+use ironrdp_cliprdr::backend::{ClipboardMessage, ClipboardMessageProxy, CliprdrBackend};
+use ironrdp_cliprdr::pdu::{
+    ClipboardFormat, ClipboardGeneralCapabilityFlags, FileContentsRequest, FileContentsResponse, FormatDataRequest,
+    FormatDataResponse, LockDataId,
+};
+use ironrdp_core::{IntoOwned as _, impl_as_any};
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
+
+use crate::windows::{BackendEvent, WM_CLIPRDR_BACKEND_EVENT};
+use crate::windows::file_clipboard::{
+    file_contents_response, mark_file_clipboard_accepted, register_file_clipboard_ready,
+    unregister_file_clipboard_ready,
+};
+
+type SharedMessageProxy = Arc<Mutex<Box<dyn ClipboardMessageProxy>>>;
+
+#[derive(Debug)]
+pub(crate) struct WinCliprdrBackend {
+    backend_event_tx: mpsc_sync::SyncSender<BackendEvent>,
+    window: HWND,
+    message_proxy: SharedMessageProxy,
+    ready: bool,
+}
+
+// SAFETY: window handle is thread safe for PostMessageW usage
+unsafe impl Send for WinCliprdrBackend {}
+
+impl_as_any!(WinCliprdrBackend);
+
+impl WinCliprdrBackend {
+    pub(crate) fn new(
+        window: HWND,
+        backend_event_tx: mpsc_sync::SyncSender<BackendEvent>,
+        message_proxy: SharedMessageProxy,
+    ) -> Self {
+        Self {
+            window,
+            backend_event_tx,
+            message_proxy,
+            ready: false,
+        }
+    }
+
+    fn send_event(&self, event: BackendEvent) {
+        if self.backend_event_tx.send(event).is_err() {
+            // Channel is closed, backend is dead
+            return;
+        }
+        // Wake up subproc event loop; Dont wait for result
+        //
+        // SAFETY: it is safe to call PostMessageW from any thread with a valid window handle
+        if let Err(err) = unsafe { PostMessageW(Some(self.window), WM_CLIPRDR_BACKEND_EVENT, WPARAM(0), LPARAM(0)) } {
+            tracing::error!("Failed to post message to wake up subproc event loop: {}", err);
+        }
+    }
+}
+
+impl CliprdrBackend for WinCliprdrBackend {
+    fn temporary_directory(&self) -> &str {
+        ".cliprdr"
+    }
+
+    fn client_capabilities(&self) -> ClipboardGeneralCapabilityFlags {
+        ClipboardGeneralCapabilityFlags::USE_LONG_FORMAT_NAMES
+            | ClipboardGeneralCapabilityFlags::STREAM_FILECLIP_ENABLED
+            | ClipboardGeneralCapabilityFlags::FILECLIP_NO_FILE_PATHS
+            | ClipboardGeneralCapabilityFlags::HUGE_FILE_SUPPORT_ENABLED
+    }
+
+    fn on_ready(&mut self) {
+        if !self.ready {
+            self.ready = true;
+            register_file_clipboard_ready();
+        }
+    }
+
+    fn on_process_negotiated_capabilities(&mut self, capabilities: ClipboardGeneralCapabilityFlags) {
+        self.send_event(BackendEvent::DowngradedCapabilities(capabilities))
+    }
+
+    fn on_remote_copy(&mut self, available_formats: &[ClipboardFormat]) {
+        self.send_event(BackendEvent::RemoteFormatList(available_formats.to_vec()));
+    }
+
+    fn on_format_data_request(&mut self, request: FormatDataRequest) {
+        self.send_event(BackendEvent::FormatDataRequest(request));
+    }
+
+    fn on_format_list_response(&mut self, ok: bool) {
+        mark_file_clipboard_accepted(ok);
+    }
+
+    fn on_format_data_response(&mut self, response: FormatDataResponse<'_>) {
+        self.send_event(BackendEvent::FormatDataResponse(response.into_owned()));
+    }
+
+    fn on_file_contents_request(&mut self, request: FileContentsRequest) {
+        let response = file_contents_response(request);
+        if let Ok(proxy) = self.message_proxy.lock() {
+            proxy.send_clipboard_message(ClipboardMessage::SendFileContentsResponse(response));
+        }
+    }
+
+    fn on_file_contents_response(&mut self, _response: FileContentsResponse<'_>) {
+        // File transfer not implemented yet
+    }
+
+    fn on_lock(&mut self, _data_id: LockDataId) {
+        // File transfer not implemented yet
+    }
+
+    fn on_unlock(&mut self, _data_id: LockDataId) {
+        // File transfer not implemented yet
+    }
+
+    fn on_request_format_list(&mut self) {
+        self.send_event(BackendEvent::RemoteRequestsFormatList);
+    }
+
+    fn now_ms(&self) -> u64 {
+        crate::native_now_ms()
+    }
+
+    fn elapsed_ms(&self, since: u64) -> u64 {
+        self.now_ms().saturating_sub(since)
+    }
+}
+
+impl Drop for WinCliprdrBackend {
+    fn drop(&mut self) {
+        if self.ready {
+            unregister_file_clipboard_ready();
+        }
+    }
+}

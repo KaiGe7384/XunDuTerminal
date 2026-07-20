@@ -1,0 +1,49 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "XunDuTerminal",
+  "version": "0.1.0",
+  "identifier": "com.xundu.terminal",
+  "build": {
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm.cmd run dev -- --host 127.0.0.1 --port 5173",
+    "beforeBuildCommand": "npm.cmd run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "XunDuTerminal",
+        "width": 1740,
+        "height": 1000,
+        "minWidth": 1200,
+        "minHeight": 760,
+        "decorations": false,
+        "resizable": true,
+        "fullscreen": false,
+        "transparent": false,
+        "center": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPLOCALDATA/background/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

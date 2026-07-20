@@ -1,0 +1,56 @@
+{
+  "name": "xunduterminal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A Windows-first server workspace for SSH, files, monitoring, processes, and remote desktops.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KaiGe7384/XunDuTerminal.git"
+  },
+  "homepage": "https://github.com/KaiGe7384/XunDuTerminal#readme",
+  "bugs": {
+    "url": "https://github.com/KaiGe7384/XunDuTerminal/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:sandbox": "vite --host 127.0.0.1 --mode sandbox",
+    "build": "tsc -b && vite build",
+    "build:sandbox": "tsc -b && vite build --mode sandbox",
+    "test:sandbox": "node tools/sandbox-smoke.mjs",
+    "test:phase2-stress": "node tools/phase2-stress.mjs",
+    "test:native": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "check": "npm run lint && npm run build && npm run test:native",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
+  },
+  "dependencies": {
+    "@codemirror/lang-json": "^6.0.2",
+    "@lobehub/icons-static-svg": "^1.93.0",
+    "@tailwindcss/vite": "^4.3.2",
+    "@tauri-apps/api": "^2.11.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "codemirror": "^6.0.2",
+    "framer-motion": "^12.42.2",
+    "lucide-react": "^1.22.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "playwright": "^1.61.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  }
+}

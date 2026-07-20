@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "forest-signal",
+  "order": 70,
+  "name": "Forest Signal",
+  "description": "深林绿与苔藓微光，稳定、安静，适合监控工作流。",
+  "preview": ["#111a14", "#203025", "#55b779"],
+  "effects": { "glowPrimary": "#55b779", "glowSecondary": "#91a85c", "glowStrength": 0.14, "motionIntensity": 0.64 },
+  "dark": {
+    "windowBackground": "#0c120e", "canvas": "#111a14", "surface": "#17231a", "elevatedSurface": "#203025",
+    "text": "#edf5ef", "mutedText": "#94aa99", "accent": "#55b779",
+    "terminalBackground": "#0c150f", "terminalForeground": "#e3f0e6", "terminalCursor": "#73cd94",
+    "ansi": { "red": "#ef766e", "green": "#55c786", "yellow": "#d9b95f", "blue": "#78a5d2", "magenta": "#ad8ac4", "cyan": "#60b7aa" }
+  },
+  "light": {
+    "windowBackground": "#e6ede7", "canvas": "#f0f6f1", "surface": "#f7fbf7", "elevatedSurface": "#ffffff",
+    "text": "#223429", "mutedText": "#63776a", "accent": "#2b7c4b",
+    "terminalBackground": "#f8fcf8", "terminalForeground": "#23352a", "terminalCursor": "#2b7c4b",
+    "ansi": { "red": "#bd443e", "green": "#2f7e49", "yellow": "#89650b", "blue": "#3c6f9c", "magenta": "#735280", "cyan": "#31766f" }
+  }
+}

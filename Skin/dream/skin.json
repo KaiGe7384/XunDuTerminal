@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "dream-skin",
+  "order": 10,
+  "name": "Dream Skin",
+  "description": "玫瑰柔光与沉浸玻璃，温和、细腻且富有层次。",
+  "preview": ["#17151b", "#2a242f", "#d66f82"],
+  "effects": { "glowPrimary": "#d66f82", "glowSecondary": "#8b5cf6", "glowStrength": 0.18, "motionIntensity": 0.82 },
+  "dark": {
+    "windowBackground": "#121116", "canvas": "#17151b", "surface": "#201c24", "elevatedSurface": "#2a242f",
+    "text": "#f5eff4", "mutedText": "#b2a2ae", "accent": "#d66f82",
+    "terminalBackground": "#151217", "terminalForeground": "#f0e8ed", "terminalCursor": "#ef96a5",
+    "ansi": { "red": "#ef748b", "green": "#72d6a0", "yellow": "#e8bf73", "blue": "#86a8ff", "magenta": "#d99cf4", "cyan": "#6bd4d1" }
+  },
+  "light": {
+    "windowBackground": "#eee9e8", "canvas": "#f7f2f1", "surface": "#fbf7f6", "elevatedSurface": "#ffffff",
+    "text": "#352b30", "mutedText": "#77676f", "accent": "#c95068",
+    "terminalBackground": "#fffafa", "terminalForeground": "#3a2f34", "terminalCursor": "#c95068",
+    "ansi": { "red": "#c73f58", "green": "#1c8952", "yellow": "#9c6b12", "blue": "#466ed4", "magenta": "#9552b6", "cyan": "#167e82" }
+  }
+}

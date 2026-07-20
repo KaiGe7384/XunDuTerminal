@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible defect in XunDuTerminal
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include passwords, private keys, access tokens, production host lists, or unredacted diagnostics.
+  - type: input
+    id: version
+    attributes:
+      label: XunDuTerminal version
+      placeholder: 0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - SSH terminal
+        - File management
+        - Monitoring or processes
+        - Remote desktop
+        - Workspaces and layout
+        - Settings or appearance
+        - Packaging or updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use a test server or redact all infrastructure details.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed credentials, private data, and production infrastructure details.
+          required: true
+        - label: I searched existing issues for this problem.
+          required: true

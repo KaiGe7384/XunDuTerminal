@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "ember",
+  "order": 30,
+  "name": "Ember Noir",
+  "description": "暖黑与琥珀微光，适合夜间专注和低刺激阅读。",
+  "preview": ["#1c1814", "#322920", "#e59652"],
+  "effects": { "glowPrimary": "#e59652", "glowSecondary": "#ef6a44", "glowStrength": 0.16, "motionIntensity": 0.68 },
+  "dark": {
+    "windowBackground": "#15120f", "canvas": "#1c1814", "surface": "#26201a", "elevatedSurface": "#322920",
+    "text": "#f6efe5", "mutedText": "#b8a58e", "accent": "#e59652",
+    "terminalBackground": "#16120e", "terminalForeground": "#f1e7d8", "terminalCursor": "#f0b473",
+    "ansi": { "red": "#ff7c70", "green": "#64cf8e", "yellow": "#e9b75e", "blue": "#7ba7e6", "magenta": "#c98bd9", "cyan": "#60c3c4" }
+  },
+  "light": {
+    "windowBackground": "#eee9e1", "canvas": "#f7f2ea", "surface": "#fcf8f2", "elevatedSurface": "#ffffff",
+    "text": "#3c3025", "mutedText": "#796958", "accent": "#bd681f",
+    "terminalBackground": "#fffaf2", "terminalForeground": "#3b3025", "terminalCursor": "#bd681f",
+    "ansi": { "red": "#c13f36", "green": "#27824c", "yellow": "#97610b", "blue": "#376da9", "magenta": "#8a4d97", "cyan": "#1c797b" }
+  }
+}

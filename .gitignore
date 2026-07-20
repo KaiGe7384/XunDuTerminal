@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+!.env.sandbox
+
+# Rust and Tauri build output
+/src-tauri/target/
+/src-tauri/target-*/
+
+# Generated packages, test output, and local tooling
+/Releases/
+/output/
+/.playwright-cli/
+/.workbuddy/
+/xundu-diagnostics.log
+/*.mp4
+/runtime-*.png
+/smoke-*.png
+/codexu-*.png
+/xundu-*.png
+/dev-page*.png
+/wave-drag-contact.jpg
+/JSON.stringify*
+/document.documentElement.dataset.appearance
+/el.getBoundingClientRect()
+/localStorage.clear()
+/PROGRESS.md
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

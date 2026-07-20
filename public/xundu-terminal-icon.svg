@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="XunDuTerminal">
+  <rect width="1024" height="1024" rx="220" fill="#111318"/>
+  <rect x="92" y="92" width="840" height="840" rx="170" fill="#20242b" stroke="#363c47" stroke-width="24"/>
+  <path d="M274 318 466 510 274 702" fill="none" stroke="#70b7ff" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M530 706h224" fill="none" stroke="#53d18b" stroke-width="92" stroke-linecap="round"/>
+  <circle cx="760" cy="270" r="40" fill="#f2c94c"/>
+</svg>

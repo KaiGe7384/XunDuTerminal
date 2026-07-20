@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xundu.local/skin.schema.json",
+  "title": "XunDuTerminal Skin",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "order", "name", "description", "preview", "effects", "dark", "light"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "order": { "type": "integer", "minimum": 0, "maximum": 9999 },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "badge": { "type": "string", "minLength": 1, "maxLength": 12 },
+    "preview": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "$ref": "#/$defs/color" }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["glowPrimary", "glowSecondary", "glowStrength", "motionIntensity"],
+      "properties": {
+        "glowPrimary": { "$ref": "#/$defs/color" },
+        "glowSecondary": { "$ref": "#/$defs/color" },
+        "glowStrength": { "type": "number", "minimum": 0, "maximum": 0.3 },
+        "motionIntensity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "dark": { "$ref": "#/$defs/theme" },
+    "light": { "$ref": "#/$defs/theme" }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "ansi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["red", "green", "yellow", "blue", "magenta", "cyan"],
+      "properties": {
+        "red": { "$ref": "#/$defs/color" },
+        "green": { "$ref": "#/$defs/color" },
+        "yellow": { "$ref": "#/$defs/color" },
+        "blue": { "$ref": "#/$defs/color" },
+        "magenta": { "$ref": "#/$defs/color" },
+        "cyan": { "$ref": "#/$defs/color" }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["windowBackground", "canvas", "surface", "elevatedSurface", "text", "mutedText", "accent", "terminalBackground", "terminalForeground", "terminalCursor", "ansi"],
+      "properties": {
+        "windowBackground": { "$ref": "#/$defs/color" },
+        "canvas": { "$ref": "#/$defs/color" },
+        "surface": { "$ref": "#/$defs/color" },
+        "elevatedSurface": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" },
+        "mutedText": { "$ref": "#/$defs/color" },
+        "accent": { "$ref": "#/$defs/color" },
+        "terminalBackground": { "$ref": "#/$defs/color" },
+        "terminalForeground": { "$ref": "#/$defs/color" },
+        "terminalCursor": { "$ref": "#/$defs/color" },
+        "ansi": { "$ref": "#/$defs/ansi" }
+      }
+    }
+  }
+}

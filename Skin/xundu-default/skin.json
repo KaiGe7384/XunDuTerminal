@@ -1,0 +1,23 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "xundu",
+  "order": 0,
+  "name": "XunDu 默认",
+  "description": "中性石墨工作台，克制、清晰，适合长时间运维。",
+  "badge": "默认",
+  "preview": ["#17181c", "#202126", "#62a8ff"],
+  "effects": { "glowPrimary": "#62a8ff", "glowSecondary": "#8cbcff", "glowStrength": 0.05, "motionIntensity": 0.55 },
+  "dark": {
+    "windowBackground": "#101114", "canvas": "#17181c", "surface": "#202126", "elevatedSurface": "#2a2b31",
+    "text": "#f2f3f5", "mutedText": "#9da1aa", "accent": "#62a8ff",
+    "terminalBackground": "#111216", "terminalForeground": "#e8ebf0", "terminalCursor": "#86b9ff",
+    "ansi": { "red": "#ff6b6b", "green": "#44c78a", "yellow": "#e6b450", "blue": "#62a8ff", "magenta": "#c792ea", "cyan": "#56cfe1" }
+  },
+  "light": {
+    "windowBackground": "#e9eaed", "canvas": "#f3f4f6", "surface": "#fafafc", "elevatedSurface": "#ffffff",
+    "text": "#202226", "mutedText": "#6f747d", "accent": "#1769e0",
+    "terminalBackground": "#fbfbfc", "terminalForeground": "#25282e", "terminalCursor": "#1769e0",
+    "ansi": { "red": "#c93636", "green": "#18864b", "yellow": "#9a6700", "blue": "#1769e0", "magenta": "#8f3cb6", "cyan": "#0b7f8c" }
+  }
+}

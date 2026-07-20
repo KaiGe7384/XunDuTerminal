@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "paper-frost",
+  "order": 40,
+  "name": "Paper Frost",
+  "description": "雾白纸感与淡墨层次，适合明亮环境和长文阅读。",
+  "preview": ["#f3f1e9", "#fffdf7", "#8d5d2d"],
+  "effects": { "glowPrimary": "#c49b6c", "glowSecondary": "#8aa39b", "glowStrength": 0.08, "motionIntensity": 0.46 },
+  "dark": {
+    "windowBackground": "#171715", "canvas": "#1d1d1a", "surface": "#252520", "elevatedSurface": "#30302a",
+    "text": "#f3f1e8", "mutedText": "#aaa89e", "accent": "#b07a3f",
+    "terminalBackground": "#181815", "terminalForeground": "#eeeadd", "terminalCursor": "#c99558",
+    "ansi": { "red": "#e36d61", "green": "#77b478", "yellow": "#d5ad58", "blue": "#78a4c7", "magenta": "#b38ab4", "cyan": "#71aaa5" }
+  },
+  "light": {
+    "windowBackground": "#e9e7df", "canvas": "#f3f1e9", "surface": "#f8f6ef", "elevatedSurface": "#fffdf7",
+    "text": "#2e302c", "mutedText": "#73746d", "accent": "#8d5d2d",
+    "terminalBackground": "#fbfaf5", "terminalForeground": "#2b2d29", "terminalCursor": "#8d5d2d",
+    "ansi": { "red": "#b8463d", "green": "#427a45", "yellow": "#8a650f", "blue": "#3e6f98", "magenta": "#765078", "cyan": "#397873" }
+  }
+}

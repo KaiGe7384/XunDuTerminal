@@ -1,0 +1,22 @@
+{
+  "$schema": "../schema.json",
+  "schemaVersion": 1,
+  "id": "sakura-mist",
+  "order": 60,
+  "name": "Sakura Mist",
+  "description": "低饱和樱粉与灰紫雾面，柔和但不牺牲对比度。",
+  "preview": ["#1b161c", "#302631", "#e384a5"],
+  "effects": { "glowPrimary": "#e384a5", "glowSecondary": "#a78bca", "glowStrength": 0.15, "motionIntensity": 0.72 },
+  "dark": {
+    "windowBackground": "#151116", "canvas": "#1b161c", "surface": "#251e26", "elevatedSurface": "#302631",
+    "text": "#f7edf3", "mutedText": "#b49eaa", "accent": "#e384a5",
+    "terminalBackground": "#161217", "terminalForeground": "#f1e7ed", "terminalCursor": "#f0a3bb",
+    "ansi": { "red": "#f0778c", "green": "#6bc495", "yellow": "#dfb76d", "blue": "#82a4e8", "magenta": "#ca91dc", "cyan": "#6ac2c0" }
+  },
+  "light": {
+    "windowBackground": "#eee8eb", "canvas": "#f7f1f4", "surface": "#fbf7f9", "elevatedSurface": "#ffffff",
+    "text": "#382b32", "mutedText": "#7e6974", "accent": "#c6537d",
+    "terminalBackground": "#fffafd", "terminalForeground": "#392c33", "terminalCursor": "#c6537d",
+    "ansi": { "red": "#c53f5d", "green": "#268353", "yellow": "#956510", "blue": "#446eb6", "magenta": "#8b4fa0", "cyan": "#28777a" }
+  }
+}
