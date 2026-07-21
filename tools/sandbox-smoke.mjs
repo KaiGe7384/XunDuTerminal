@@ -504,6 +504,7 @@ try {
   await page.locator('.file-download-heading button').click()
 
   const fileContextMenu = page.locator('.context-menu')
+  const fileOperationBackdrop = page.locator('.file-operation-backdrop')
   await resultsFile.click({ button: 'right' })
   await fileContextMenu.waitFor({ state: 'visible' })
   await fileContextMenu.getByRole('button', { name: /重命名/ }).click()
@@ -511,7 +512,7 @@ try {
   await renameModal.waitFor({ state: 'visible' })
   await renameModal.locator('input').fill('results-renamed.json')
   await renameModal.getByRole('button', { name: '取消' }).click()
-  await renameModal.waitFor({ state: 'detached' })
+  await fileOperationBackdrop.waitFor({ state: 'detached' })
   await resultsFile.click({ button: 'right' })
   await fileContextMenu.waitFor({ state: 'visible' })
   await fileContextMenu.getByRole('button', { name: /删除文件/ }).click()
@@ -519,7 +520,7 @@ try {
   await deleteModal.waitFor({ state: 'visible' })
   assert(await deleteModal.getByRole('button', { name: '确认删除' }).count() === 1, 'delete confirmation action is missing')
   await deleteModal.getByRole('button', { name: '取消' }).click()
-  await deleteModal.waitFor({ state: 'detached' })
+  await fileOperationBackdrop.waitFor({ state: 'detached' })
 
   const storedTransfers = await page.evaluate(() => JSON.parse(localStorage.getItem('xundu.phase2.transfers.v1') ?? '[]'))
   assert(storedTransfers.some((transfer) => transfer.status === 'completed'), 'completed file download did not enter the unified transfer history')
