@@ -2,7 +2,7 @@
   "name": "xunduterminal",
   "private": true,
   "version": "0.1.0",
-  "description": "A Windows-first server workspace for SSH, files, monitoring, processes, and remote desktops.",
+  "description": "面向 Windows 的开源服务器工作台，集成 SSH、文件管理、监控、进程与远程桌面。",
   "license": "MIT",
   "repository": {
     "type": "git",

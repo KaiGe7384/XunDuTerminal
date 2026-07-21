@@ -33,7 +33,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: XunDuTerminal ${{ github.ref_name }}
-          releaseBody: See CHANGELOG.md for release notes. Verify downloads with SHA256SUMS.txt.
+          releaseBody: 发布说明见 CHANGELOG.md。下载后请使用 SHA256SUMS.txt 校验文件完整性；当前安装包尚未签名，Windows SmartScreen 可能显示提示。
           releaseDraft: true
           prerelease: true
       - name: Generate SHA256 checksums
