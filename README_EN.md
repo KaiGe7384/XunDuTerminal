@@ -6,6 +6,12 @@ XunDuTerminal is an open-source, Windows-first server workspace that keeps SSH t
 
 [Source](https://github.com/KaiGe7384/XunDuTerminal) · [Releases](https://github.com/KaiGe7384/XunDuTerminal/releases) · [Issues](https://github.com/KaiGe7384/XunDuTerminal/issues)
 
+<p align="center">
+  <img src="docs/screenshots/workspace-overview.png" alt="XunDuTerminal multi-panel server workspace" width="100%" />
+</p>
+
+<p align="center"><sub>Terminals, file management, resource monitoring, and processes in one flexible workspace. The screenshot uses safe sandbox data.</sub></p>
+
 > The current `v0.1.0` build is a pre-release. Windows installers are not Authenticode-signed yet and may trigger SmartScreen. Back up important connection metadata before testing.
 
 ## Highlights
@@ -19,6 +25,14 @@ XunDuTerminal is an open-source, Windows-first server workspace that keeps SSH t
 - Native RDP sessions with dynamic resolution, clipboard text, and file transfer.
 - Dark and light appearances, eight file-backed themes, custom wallpapers, and interface transparency.
 - Chinese and English UI, configurable terminal typography, and reduced-motion support.
+
+### Themes and appearance
+
+<p align="center">
+  <img src="docs/screenshots/theme-presets.png" alt="XunDuTerminal theme presets" width="88%" />
+</p>
+
+Eight theme presets span dark, light, and glass-inspired directions, with synchronized terminal colors, wallpaper, and transparency settings.
 
 ## Platform Support
 
