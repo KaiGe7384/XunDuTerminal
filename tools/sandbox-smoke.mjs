@@ -28,7 +28,11 @@ try {
   await waitForServer(url)
 
   const browser = await launchBrowser()
-  const page = await browser.newPage({ viewport: { width: 1482, height: 922 }, deviceScaleFactor: 1 })
+  const page = await browser.newPage({
+    viewport: { width: 1482, height: 922 },
+    deviceScaleFactor: 1,
+    locale: 'zh-CN',
+  })
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(url).origin })
   const pageErrors = []
   page.on('console', (message) => {
