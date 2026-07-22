@@ -1,11 +1,11 @@
 {
-  "version": "0.1.0",
-  "notes": "XunDuTerminal 0.1.0：服务器工作台、SSH 与本地终端、文件传输、系统监控、进程管理、远程桌面、主题预设与软件更新中心。",
-  "releaseUrl": "https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.1.0",
-  "publishedAt": "2026-07-21T08:11:34Z",
+  "version": "0.2.0",
+  "notes": "XunDuTerminal 0.2.0：新增安全更新下载、进度显示、取消与重试、安装包大小及 SHA-256 校验，并支持用户确认后启动安装程序。",
+  "releaseUrl": "https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.0",
+  "publishedAt": "2026-07-22T09:26:46Z",
   "windows": {
-    "url": "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.1.0/XunDuTerminal_0.1.0_x64-setup.exe",
-    "sha256": "4c2a3fb1e65622ed2831b0f23924d74dd200210cd4bb76aa09968b9a976610b8",
-    "size": 5860913
+    "url": "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.0/XunDuTerminal_0.2.0_x64-setup.exe",
+    "sha256": "f4aa6f297984cb333c496ca308b27869fb668fe4a4b691230d07cff781a2cd33",
+    "size": 5892413
   }
 }
