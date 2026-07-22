@@ -588,12 +588,12 @@ try {
     sshConnectsBeforeSearch,
   )
 
-  const localPanelStarted = Date.now()
   if (await page.locator('.app-shell.drawer-open').count()) {
     await page.getByRole('button', { name: '收起侧边栏' }).click()
     await page.locator('.app-shell.drawer-collapsed').waitFor({ state: 'attached' })
   }
   const workbenchBeforeDrawer = await page.locator('.wave-workbench').boundingBox()
+  const localPanelStarted = Date.now()
   await page.locator('.dock-button[aria-label="本地"]').click()
   await page.locator('.local-tools').waitFor({ state: 'visible' })
   assert(Date.now() - localPanelStarted < 1_000, 'local sidebar took too long to become interactive')
