@@ -11,6 +11,7 @@ use iron_rdp::{
 };
 use portable_pty::{native_pty_system, Child as PtyChild, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use ssh2::{Channel, CheckResult, KnownHostFileKind, MethodType, Session};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -306,6 +307,11 @@ struct FileDownloadTransfers {
     transfers: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
 }
 
+#[derive(Default)]
+struct VerifiedAppUpdates {
+    installers: Arc<Mutex<HashSet<PathBuf>>>,
+}
+
 struct SshTunnelProcess {
     child: Child,
     started_at: u64,
@@ -558,6 +564,9 @@ const DIAGNOSTICS_MAX_BYTES: u64 = 5 * 1024 * 1024;
 static DIAGNOSTIC_HASH_STATE: OnceLock<RandomState> = OnceLock::new();
 const DEFAULT_APP_UPDATE_MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/KaiGe7384/XunDuTerminal/main/deploy/xunduterminal/latest.json";
+const MAX_APP_UPDATE_BYTES: u64 = 512 * 1024 * 1024;
+const OFFICIAL_UPDATE_OWNER: &str = "kaige7384";
+const OFFICIAL_UPDATE_REPOSITORY: &str = "xunduterminal";
 const QQ_GROUP_ONE_URL: &str = "mqqapi://card/show_pslcard?src_type=internal&version=1&uin=1090339570&card_type=group&source=qrcode";
 const QQ_GROUP_TWO_URL: &str = "mqqapi://card/show_pslcard?src_type=internal&version=1&uin=262430517&card_type=group&source=qrcode";
 
@@ -571,6 +580,14 @@ where
         .map_err(|error| format!("Background task failed: {error:?}"))?
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppUpdateInstaller {
+    url: String,
+    sha256: String,
+    size: u64,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AppUpdateManifest {
@@ -579,6 +596,10 @@ struct AppUpdateManifest {
     notes: Option<String>,
     #[serde(default, alias = "release_url", alias = "url")]
     release_url: Option<String>,
+    #[serde(default)]
+    published_at: Option<String>,
+    #[serde(default)]
+    windows: Option<AppUpdateInstaller>,
 }
 
 #[derive(Serialize)]
@@ -590,6 +611,15 @@ struct AppUpdateCheck {
     status: String,
     notes: Option<String>,
     release_url: Option<String>,
+    published_at: Option<String>,
+    installer: Option<AppUpdateInstaller>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppUpdateDownloadResult {
+    installer_path: String,
+    total_bytes: u64,
 }
 
 fn unavailable_update_check() -> AppUpdateCheck {
@@ -600,11 +630,63 @@ fn unavailable_update_check() -> AppUpdateCheck {
         status: "unavailable".into(),
         notes: None,
         release_url: None,
+        published_at: None,
+        installer: None,
     }
 }
 
 fn parse_update_version(value: &str) -> Result<semver::Version, semver::Error> {
     semver::Version::parse(value.trim().trim_start_matches(['v', 'V']))
+}
+
+fn validate_app_update_installer(
+    installer: &AppUpdateInstaller,
+    expected_version: &semver::Version,
+) -> Result<String, String> {
+    if installer.size == 0 || installer.size > MAX_APP_UPDATE_BYTES {
+        return Err("更新安装包大小无效".to_string());
+    }
+    let sha256 = installer.sha256.trim();
+    if sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("更新安装包 SHA-256 无效".to_string());
+    }
+    let url =
+        reqwest::Url::parse(installer.url.trim()).map_err(|_| "更新安装包地址无效".to_string())?;
+    if url.scheme() != "https"
+        || url.host_str().map(str::to_ascii_lowercase).as_deref() != Some("github.com")
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err("更新安装包地址不在允许列表中".to_string());
+    }
+    let segments = url
+        .path_segments()
+        .map(|segments| {
+            segments
+                .filter(|segment| !segment.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if segments.len() != 6
+        || !segments[0].eq_ignore_ascii_case(OFFICIAL_UPDATE_OWNER)
+        || !segments[1].eq_ignore_ascii_case(OFFICIAL_UPDATE_REPOSITORY)
+        || segments[2] != "releases"
+        || segments[3] != "download"
+    {
+        return Err("更新安装包地址不在允许列表中".to_string());
+    }
+    let tag_version =
+        parse_update_version(segments[4]).map_err(|_| "更新安装包版本无效".to_string())?;
+    if &tag_version != expected_version {
+        return Err("更新安装包版本与更新清单不一致".to_string());
+    }
+    let file_name = safe_file_name(segments[5])?;
+    let lower_name = file_name.to_ascii_lowercase();
+    let expected_file_name = format!("xunduterminal_{expected_version}_x64-setup.exe");
+    if lower_name != expected_file_name {
+        return Err("更新清单未提供受支持的 Windows 安装包".to_string());
+    }
+    Ok(file_name)
 }
 
 fn check_app_update_sync() -> Result<AppUpdateCheck, String> {
@@ -648,6 +730,9 @@ fn check_app_update_sync() -> Result<AppUpdateCheck, String> {
     let release_url = manifest
         .release_url
         .filter(|url| is_allowed_source_repository_url(url));
+    let installer = manifest
+        .windows
+        .filter(|installer| validate_app_update_installer(installer, &latest_version).is_ok());
 
     Ok(AppUpdateCheck {
         current_version: current_version.to_string(),
@@ -660,12 +745,228 @@ fn check_app_update_sync() -> Result<AppUpdateCheck, String> {
         },
         notes: manifest.notes.filter(|notes| !notes.trim().is_empty()),
         release_url,
+        published_at: manifest
+            .published_at
+            .filter(|published_at| !published_at.trim().is_empty()),
+        installer,
     })
 }
 
 #[tauri::command]
 async fn check_app_update() -> Result<AppUpdateCheck, String> {
     run_blocking(check_app_update_sync).await
+}
+
+fn app_update_directory(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_cache_dir()
+        .map(|path| path.join("updates"))
+        .map_err(|error| format!("无法定位更新缓存目录：{error}"))
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path)
+        .map_err(|error| format!("无法读取更新安装包 {}：{error}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 256 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|error| format!("无法校验更新安装包：{error}"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn download_app_update_sync(
+    app: AppHandle,
+    verified_updates: Arc<Mutex<HashSet<PathBuf>>>,
+    version: String,
+    installer: AppUpdateInstaller,
+    cancelled: Arc<AtomicBool>,
+    on_progress: IpcChannel<FileDownloadProgress>,
+) -> Result<AppUpdateDownloadResult, String> {
+    let current_version = parse_update_version(env!("CARGO_PKG_VERSION"))
+        .map_err(|error| format!("当前版本号无效：{error}"))?;
+    let update_version =
+        parse_update_version(&version).map_err(|_| "目标更新版本无效".to_string())?;
+    if update_version <= current_version {
+        return Err("目标版本不是可安装的新版本".to_string());
+    }
+    let file_name = validate_app_update_installer(&installer, &update_version)?;
+    let expected_hash = installer.sha256.trim().to_ascii_lowercase();
+    let directory = app_update_directory(&app)?;
+    fs::create_dir_all(&directory)
+        .map_err(|error| format!("无法创建更新缓存目录 {}：{error}", directory.display()))?;
+    let destination = directory.join(&file_name);
+    let staged = directory.join(format!(".{file_name}.part"));
+    let mut progress = FileDownloadProgressState {
+        total_bytes: installer.size,
+        transferred_bytes: 0,
+        copied_files: 0,
+        total_files: 1,
+        last_sample_at: Instant::now(),
+        last_sample_bytes: 0,
+        bytes_per_second: 0,
+        cancelled,
+        on_progress,
+    };
+    progress.emit(&file_name, true, false);
+
+    if destination.is_file()
+        && fs::metadata(&destination)
+            .map(|metadata| metadata.len() == installer.size)
+            .unwrap_or(false)
+        && sha256_file(&destination)
+            .map(|digest| digest == expected_hash)
+            .unwrap_or(false)
+    {
+        progress.transferred_bytes = installer.size;
+        progress.copied_files = 1;
+        progress.emit("", true, true);
+        let canonical = fs::canonicalize(&destination)
+            .map_err(|error| format!("无法确认更新安装包路径：{error}"))?;
+        verified_updates
+            .lock()
+            .map_err(|_| "更新安装状态不可用".to_string())?
+            .insert(canonical);
+        return Ok(AppUpdateDownloadResult {
+            installer_path: destination.to_string_lossy().into_owned(),
+            total_bytes: installer.size,
+        });
+    }
+
+    let _ = fs::remove_file(&destination);
+    let _ = fs::remove_file(&staged);
+    progress.ensure_active()?;
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(15 * 60))
+        .user_agent(concat!("XunDuTerminal/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("无法初始化更新下载：{error}"))?;
+    let mut response = client
+        .get(installer.url.trim())
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .map_err(|error| format!("更新安装包下载失败：{error}"))?;
+    if let Some(content_length) = response.content_length() {
+        if content_length != installer.size {
+            return Err("更新安装包大小与清单不一致".to_string());
+        }
+    }
+    let result = (|| {
+        let mut writer =
+            File::create(&staged).map_err(|error| format!("无法创建更新临时文件：{error}"))?;
+        let mut hasher = Sha256::new();
+        let mut buffer = vec![0u8; 256 * 1024];
+        loop {
+            progress.ensure_active()?;
+            let read = response
+                .read(&mut buffer)
+                .map_err(|error| format!("读取更新安装包失败：{error}"))?;
+            if read == 0 {
+                break;
+            }
+            progress.transferred_bytes = progress.transferred_bytes.saturating_add(read as u64);
+            if progress.transferred_bytes > installer.size {
+                return Err("更新安装包超过清单声明的大小".to_string());
+            }
+            writer
+                .write_all(&buffer[..read])
+                .map_err(|error| format!("写入更新安装包失败：{error}"))?;
+            hasher.update(&buffer[..read]);
+            progress.emit(&file_name, false, false);
+        }
+        writer
+            .sync_all()
+            .map_err(|error| format!("保存更新安装包失败：{error}"))?;
+        if progress.transferred_bytes != installer.size {
+            return Err("更新安装包下载不完整".to_string());
+        }
+        let actual_hash = format!("{:x}", hasher.finalize());
+        if actual_hash != expected_hash {
+            return Err("更新安装包 SHA-256 校验失败，文件已丢弃".to_string());
+        }
+        fs::rename(&staged, &destination)
+            .map_err(|error| format!("无法保存已校验的更新安装包：{error}"))?;
+        let canonical = fs::canonicalize(&destination)
+            .map_err(|error| format!("无法确认更新安装包路径：{error}"))?;
+        verified_updates
+            .lock()
+            .map_err(|_| "更新安装状态不可用".to_string())?
+            .insert(canonical);
+        progress.copied_files = 1;
+        progress.emit("", true, true);
+        Ok(AppUpdateDownloadResult {
+            installer_path: destination.to_string_lossy().into_owned(),
+            total_bytes: installer.size,
+        })
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&staged);
+    }
+    result
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+async fn download_app_update(
+    app: AppHandle,
+    transfers: State<'_, FileDownloadTransfers>,
+    verified_updates: State<'_, VerifiedAppUpdates>,
+    transfer_id: String,
+    version: String,
+    url: String,
+    sha256: String,
+    size: u64,
+    on_progress: IpcChannel<FileDownloadProgress>,
+) -> Result<AppUpdateDownloadResult, String> {
+    let cancelled = register_file_download(&transfers, &transfer_id)?;
+    let transfer_key = transfer_id.trim().to_string();
+    let transfer_store = transfers.transfers.clone();
+    let verified_store = verified_updates.installers.clone();
+    let result = run_blocking(move || {
+        download_app_update_sync(
+            app,
+            verified_store,
+            version,
+            AppUpdateInstaller { url, sha256, size },
+            cancelled,
+            on_progress,
+        )
+    })
+    .await;
+    remove_file_download(&transfer_store, &transfer_key);
+    result
+}
+
+#[tauri::command]
+fn launch_app_update(
+    verified_updates: State<'_, VerifiedAppUpdates>,
+    installer_path: String,
+) -> Result<(), String> {
+    let canonical = fs::canonicalize(installer_path.trim())
+        .map_err(|error| format!("无法找到已下载的更新安装包：{error}"))?;
+    let mut installers = verified_updates
+        .installers
+        .lock()
+        .map_err(|_| "更新安装状态不可用".to_string())?;
+    if !installers.remove(&canonical) {
+        return Err("该安装包尚未通过本次更新校验，请重新下载".to_string());
+    }
+    let spawn_result = Command::new(&canonical).spawn();
+    match spawn_result {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            installers.insert(canonical);
+            Err(format!("无法启动更新安装程序：{error}"))
+        }
+    }
 }
 
 fn is_allowed_external_url(url: &str) -> bool {
@@ -6349,9 +6650,9 @@ mod tests {
         redact_sensitive_text, remote_download_staging_path, resolve_ssh_socket_addresses,
         safe_file_name, sanitize_diagnostic_content, ssh_output_confirms_authentication,
         ssh_output_reports_authentication_failure, terminal_output_should_flush, trim_utf8_tail,
-        tunnel_forwarding_argument, unique_destination, validated_background_extension,
-        CliToolInfo, LocalProcessSampler, QQ_GROUP_ONE_URL, QQ_GROUP_TWO_URL,
-        SSH_HOST_KEY_PREFERENCE,
+        tunnel_forwarding_argument, unique_destination, validate_app_update_installer,
+        validated_background_extension, AppUpdateInstaller, CliToolInfo, LocalProcessSampler,
+        QQ_GROUP_ONE_URL, QQ_GROUP_TWO_URL, SSH_HOST_KEY_PREFERENCE,
     };
     use ssh2::{MethodType, Session};
     use std::{
@@ -6852,6 +7153,37 @@ mod tests {
     #[test]
     fn update_versions_and_external_urls_are_validated() {
         assert!(parse_update_version("v0.2.0").unwrap() > parse_update_version("0.1.9").unwrap());
+        let installer = AppUpdateInstaller {
+            url: "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.0/XunDuTerminal_0.2.0_x64-setup.exe".into(),
+            sha256: "4c2a3fb1e65622ed2831b0f23924d74dd200210cd4bb76aa09968b9a976610b8".into(),
+            size: 5_860_913,
+        };
+        assert_eq!(
+            validate_app_update_installer(&installer, &parse_update_version("0.2.0").unwrap())
+                .unwrap(),
+            "XunDuTerminal_0.2.0_x64-setup.exe"
+        );
+        let mut invalid_installer = installer.clone();
+        invalid_installer.url = "https://example.com/XunDuTerminal_0.2.0_x64-setup.exe".into();
+        assert!(validate_app_update_installer(
+            &invalid_installer,
+            &parse_update_version("0.2.0").unwrap()
+        )
+        .is_err());
+        let mut mismatched_installer = installer.clone();
+        mismatched_installer.url = "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.3.0/XunDuTerminal_0.3.0_x64-setup.exe".into();
+        assert!(validate_app_update_installer(
+            &mismatched_installer,
+            &parse_update_version("0.2.0").unwrap()
+        )
+        .is_err());
+        let mut invalid_hash_installer = installer;
+        invalid_hash_installer.sha256 = "not-a-sha256".into();
+        assert!(validate_app_update_installer(
+            &invalid_hash_installer,
+            &parse_update_version("0.2.0").unwrap()
+        )
+        .is_err());
         assert!(is_allowed_external_url("https://xunduyun.com/"));
         assert!(is_allowed_external_url(
             "https://www.xunduyun.com/xunduterminal/download"
@@ -6889,6 +7221,7 @@ pub fn run() {
         .manage(LocalProcessSampler::default())
         .manage(RemoteAuxLimiter::default())
         .manage(FileDownloadTransfers::default())
+        .manage(VerifiedAppUpdates::default())
         .manage(SshTunnelProcesses::default())
         .manage(IronRdpSessions::default())
         .manage(RdpFileTransfers::default())
@@ -6946,6 +7279,8 @@ pub fn run() {
             diag_log_frontend,
             export_diagnostics,
             check_app_update,
+            download_app_update,
+            launch_app_update,
             open_external_url,
             save_text_export,
             open_text_import,

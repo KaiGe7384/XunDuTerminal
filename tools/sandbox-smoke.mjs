@@ -147,7 +147,7 @@ try {
   await page.locator('.settings-nav button').filter({ hasText: '关于' }).click()
   const aboutText = await page.locator('.settings-pane').innerText()
   assert(!/Codex Dream Skin|MIT|开源项目/.test(aboutText), `about section still exposed theme source copy: ${aboutText}`)
-  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.1.0'), 'about section did not show product identity and version')
+  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.2.0'), 'about section did not show product identity and version')
   assert(aboutText.includes('https://xunduyun.com/'), 'about section did not show the enterprise server website')
   assert(aboutText.includes('1090339570') && aboutText.includes('262430517'), 'about section did not show both technical QQ groups')
   assert(!aboutText.includes('前往官网'), 'update section still exposed the retired website fallback')
@@ -169,6 +169,30 @@ try {
   assert(aboutTypography.groupNumber >= 12, `about QQ group number remained too small: ${aboutTypography.groupNumber}px`)
   await page.getByRole('button', { name: /检查更新/ }).click()
   await page.getByText('当前已是最新版本。').waitFor()
+  await page.evaluate(() => { window.__XUNDU_SANDBOX_UPDATE_AVAILABLE__ = true })
+  await page.getByRole('button', { name: /检查更新/ }).click()
+  await page.getByText(/发现新版本.*v0\.3\.0/).waitFor()
+  assert(await page.getByText('官方安装包 · SHA-256 校验').count() === 1, 'available update did not expose its verified installer metadata')
+  await page.getByRole('button', { name: '下载更新' }).click()
+  await page.locator('.about-update-progress.status-downloading').waitFor()
+  await page.getByRole('button', { name: '取消下载' }).click()
+  await page.getByText('更新下载已取消').waitFor({ timeout: 4_000 })
+  await page.getByRole('button', { name: '重新下载' }).click()
+  await page.getByText('安装包校验完成').waitFor({ timeout: 4_000 })
+  assert(
+    await page.evaluate(() => (window.__XUNDU_SANDBOX_UPDATE_DOWNLOADS__ ?? []).length === 1),
+    'verified update installer was not downloaded through the native bridge',
+  )
+  await page.getByRole('button', { name: '打开安装程序' }).click()
+  await page.getByText('安装程序已启动，请按提示完成更新。').waitFor()
+  assert(
+    await page.evaluate(() => (window.__XUNDU_SANDBOX_UPDATE_LAUNCHES__ ?? []).length === 1),
+    'verified update installer was not launched through the native bridge',
+  )
+  const updateTransfers = await page.evaluate(() => JSON.parse(localStorage.getItem('xundu.phase2.transfers.v1') ?? '[]')
+    .filter((transfer) => transfer.title.includes('软件更新')))
+  assert(updateTransfers.some((transfer) => transfer.status === 'cancelled'), `cancelled update did not enter transfer management: ${JSON.stringify(updateTransfers)}`)
+  assert(updateTransfers.some((transfer) => transfer.status === 'completed'), `completed update did not enter transfer management: ${JSON.stringify(updateTransfers)}`)
   await page.locator('.about-resource-card.website').click()
   await page.waitForFunction(() => (window.__XUNDU_SANDBOX_EXTERNAL_URLS__ ?? []).includes('https://xunduyun.com/'))
   assert(
@@ -865,7 +889,11 @@ try {
   const terminalTextBeforeWorkspaceSwitch = await page.locator('.workspace-layer.active .xterm-rows').last().textContent()
   await page.locator('.task-tab').nth(1).click()
   await page.locator('.task-tab').nth(0).click()
-  await page.waitForTimeout(250)
+  await page.waitForFunction(() => {
+    const terminals = [...document.querySelectorAll('.workspace-layer.active .xterm-rows')]
+    const text = terminals.at(-1)?.textContent ?? ''
+    return text.includes('cd') && text.includes('sandbox stream')
+  }, null, { timeout: 5_000 })
   const terminalTextAfterWorkspaceSwitch = await page.locator('.workspace-layer.active .xterm-rows').last().textContent()
   assert(
     terminalTextBeforeWorkspaceSwitch?.includes('cd')

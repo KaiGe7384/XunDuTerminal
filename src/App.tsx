@@ -145,9 +145,26 @@ type AppUpdateCheckResult = {
   status: 'current' | 'available' | 'unavailable'
   notes: string | null
   releaseUrl: string | null
+  publishedAt: string | null
+  installer: {
+    url: string
+    sha256: string
+    size: number
+  } | null
 }
 
-const APP_VERSION = '0.1.0'
+type AppUpdateDownloadState = FileDownloadProgress & {
+  status: 'idle' | 'downloading' | 'ready' | 'error' | 'cancelled' | 'launching' | 'launched'
+  installerPath: string
+  error: string
+}
+
+type AppUpdateDownloadResult = {
+  installerPath: string
+  totalBytes: number
+}
+
+const APP_VERSION = '0.2.0'
 const XUNDU_WEBSITE_URL = 'https://xunduyun.com/'
 const TECHNICAL_QQ_GROUPS = [
   {
@@ -9716,19 +9733,47 @@ function SettingsModal({
   const [section, setSection] = useState<'appearance' | 'language' | 'servers' | 'about'>('appearance')
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateResult, setUpdateResult] = useState<AppUpdateCheckResult | null>(null)
+  const [updateDownload, setUpdateDownload] = useState<AppUpdateDownloadState>({
+    status: 'idle',
+    totalBytes: 0,
+    transferredBytes: 0,
+    bytesPerSecond: 0,
+    copiedFiles: 0,
+    totalFiles: 1,
+    currentFile: '',
+    completed: false,
+    installerPath: '',
+    error: '',
+  })
   const [copiedGroup, setCopiedGroup] = useState('')
   const [externalLinkFeedback, setExternalLinkFeedback] = useState('')
   const copyFeedbackTimerRef = useRef<number | null>(null)
+  const updateDownloadRef = useRef<{ id: string; cancelled: boolean } | null>(null)
 
   useEffect(() => () => {
     if (copyFeedbackTimerRef.current !== null) window.clearTimeout(copyFeedbackTimerRef.current)
   }, [])
 
   async function checkForUpdates() {
-    if (updateBusy) return
+    if (updateBusy || updateDownload.status === 'downloading' || updateDownload.status === 'launching') return
     setUpdateBusy(true)
     try {
-      setUpdateResult(await invoke<AppUpdateCheckResult>('check_app_update'))
+      const result = await invoke<AppUpdateCheckResult>('check_app_update')
+      setUpdateResult(result)
+      setUpdateDownload((current) => current.status === 'ready' || current.status === 'launched'
+        ? current
+        : {
+            status: 'idle',
+            totalBytes: result.installer?.size ?? 0,
+            transferredBytes: 0,
+            bytesPerSecond: 0,
+            copiedFiles: 0,
+            totalFiles: 1,
+            currentFile: '',
+            completed: false,
+            installerPath: '',
+            error: '',
+          })
     } catch {
       setUpdateResult({
         currentVersion: APP_VERSION,
@@ -9737,9 +9782,145 @@ function SettingsModal({
         status: 'unavailable',
         notes: null,
         releaseUrl: null,
+        publishedAt: null,
+        installer: null,
       })
     } finally {
       setUpdateBusy(false)
+    }
+  }
+
+  async function downloadAppUpdate() {
+    const installer = updateResult?.installer
+    const version = updateResult?.latestVersion
+    if (!installer || !version || updateDownloadRef.current) return
+    const transferId = crypto.randomUUID()
+    const transfer = { id: transferId, cancelled: false }
+    updateDownloadRef.current = transfer
+    const fileName = installer.url.split('/').filter(Boolean).at(-1) ?? `XunDuTerminal_${version}_x64-setup.exe`
+    const baseProgress: AppUpdateDownloadState = {
+      status: 'downloading',
+      totalBytes: installer.size,
+      transferredBytes: 0,
+      bytesPerSecond: 0,
+      copiedFiles: 0,
+      totalFiles: 1,
+      currentFile: fileName,
+      completed: false,
+      installerPath: '',
+      error: '',
+    }
+    setUpdateDownload(baseProgress)
+    upsertTransfer({
+      id: transferId,
+      protocol: 'local',
+      direction: 'download',
+      title: `${t('软件更新')} v${version}`,
+      source: 'GitHub Releases',
+      destination: t('应用更新缓存'),
+      status: 'running',
+      totalBytes: installer.size,
+      transferredBytes: 0,
+      bytesPerSecond: 0,
+      copiedFiles: 0,
+      totalFiles: 1,
+      currentFile: fileName,
+      message: t('正在下载并校验安装包'),
+      resumable: false,
+    }, {
+      cancel: () => cancelAppUpdateDownload(),
+      retry: () => downloadAppUpdate(),
+    })
+    const onProgress = createMessageChannel<FileDownloadProgress>((progress) => {
+      if (updateDownloadRef.current?.id !== transferId) return
+      setUpdateDownload((current) => ({ ...current, ...progress }))
+      upsertTransfer({
+        id: transferId,
+        ...progress,
+        status: progress.completed ? 'completed' : 'running',
+        message: progress.completed ? t('安装包校验完成') : t('正在下载并校验安装包'),
+      })
+    })
+    try {
+      const result = await invoke<AppUpdateDownloadResult>('download_app_update', {
+        transferId,
+        version,
+        url: installer.url,
+        sha256: installer.sha256,
+        size: installer.size,
+        onProgress,
+      })
+      if (updateDownloadRef.current?.id !== transferId) return
+      setUpdateDownload((current) => ({
+        ...current,
+        status: 'ready',
+        totalBytes: result.totalBytes,
+        transferredBytes: result.totalBytes,
+        bytesPerSecond: 0,
+        copiedFiles: 1,
+        completed: true,
+        currentFile: '',
+        installerPath: result.installerPath,
+        error: '',
+      }))
+      upsertTransfer({
+        id: transferId,
+        status: 'completed',
+        destination: result.installerPath,
+        totalBytes: result.totalBytes,
+        transferredBytes: result.totalBytes,
+        bytesPerSecond: 0,
+        copiedFiles: 1,
+        currentFile: '',
+        message: t('安装包校验完成'),
+      }, { retry: () => downloadAppUpdate() })
+    } catch (reason) {
+      if (updateDownloadRef.current?.id !== transferId) return
+      const detail = String(reason).replace(/^Error:\s*/i, '')
+      const cancelled = transfer.cancelled || detail.includes('取消')
+      setUpdateDownload((current) => ({
+        ...current,
+        status: cancelled ? 'cancelled' : 'error',
+        bytesPerSecond: 0,
+        error: cancelled ? '' : detail,
+      }))
+      upsertTransfer({
+        id: transferId,
+        status: cancelled ? 'cancelled' : 'error',
+        bytesPerSecond: 0,
+        message: cancelled ? t('更新下载已取消') : detail,
+      }, { retry: () => downloadAppUpdate() })
+    } finally {
+      if (updateDownloadRef.current?.id === transferId) updateDownloadRef.current = null
+    }
+  }
+
+  async function cancelAppUpdateDownload() {
+    const transfer = updateDownloadRef.current
+    if (!transfer || transfer.cancelled) return
+    transfer.cancelled = true
+    setUpdateDownload((current) => ({ ...current, bytesPerSecond: 0 }))
+    upsertTransfer({ id: transfer.id, bytesPerSecond: 0, message: t('正在取消更新下载…') })
+    try {
+      await invoke('cancel_file_download', { transferId: transfer.id })
+    } catch {
+      transfer.cancelled = false
+      throw new Error(t('无法取消更新下载'))
+    }
+  }
+
+  async function launchAppUpdate() {
+    if (updateDownload.status !== 'ready' || !updateDownload.installerPath) return
+    setUpdateDownload((current) => ({ ...current, status: 'launching', error: '' }))
+    try {
+      await invoke('launch_app_update', { installerPath: updateDownload.installerPath })
+      setUpdateDownload((current) => ({ ...current, status: 'launched' }))
+    } catch (reason) {
+      setUpdateDownload((current) => ({
+        ...current,
+        status: 'ready',
+        error: String(reason).replace(/^Error:\s*/i, ''),
+      }))
     }
   }
 
@@ -10136,7 +10317,12 @@ function SettingsModal({
                       <strong>{t('软件更新')}</strong>
                       <small>{t('当前版本')} v{updateResult?.currentVersion ?? APP_VERSION}</small>
                     </div>
-                    <button className="ghost-button compact" type="button" disabled={updateBusy} onClick={() => { void checkForUpdates() }}>
+                    <button
+                      className="ghost-button compact"
+                      type="button"
+                      disabled={updateBusy || updateDownload.status === 'downloading' || updateDownload.status === 'launching'}
+                      onClick={() => { void checkForUpdates() }}
+                    >
                       <RefreshCw className={updateBusy ? 'is-spinning' : ''} size={14} />
                       {t(updateBusy ? '正在检查…' : '检查更新')}
                     </button>
@@ -10154,7 +10340,7 @@ function SettingsModal({
                               ? '暂时无法连接更新服务；开源后可前往仓库查看最新版本。'
                               : '点击检查更新以获取最新版本信息。')}
                     </span>
-                    {updateResult?.status === 'available' && updateResult.releaseUrl && (
+                    {updateResult?.status === 'available' && updateResult.releaseUrl && !updateResult.installer && (
                       <button type="button" onClick={() => {
                         if (updateResult.releaseUrl) void openExternalUrl(updateResult.releaseUrl)
                       }}>
@@ -10163,6 +10349,70 @@ function SettingsModal({
                     )}
                   </div>
                   {updateResult?.notes && <p className="about-update-notes">{updateResult.notes}</p>}
+                  {updateResult?.status === 'available' && (
+                    <div className="about-update-download">
+                      <div className="about-update-package">
+                        <span><ShieldCheck size={14} />{t(updateResult.installer ? '官方安装包 · SHA-256 校验' : '当前版本仅提供手动下载')}</span>
+                        {updateResult.installer && <em>{formatBytes(updateResult.installer.size)}</em>}
+                      </div>
+                      {updateResult.installer && updateDownload.status !== 'idle' && (
+                        <div className={`about-update-progress status-${updateDownload.status}`}>
+                          <div className="about-update-progress-track" aria-label={t('更新下载进度')}>
+                            <span style={{ width: `${fileDownloadPercent(updateDownload)}%` }} />
+                          </div>
+                          <div className="about-update-progress-meta">
+                            <span>
+                              {t(updateDownload.status === 'downloading'
+                                ? '正在下载并校验安装包'
+                                : updateDownload.status === 'ready'
+                                  ? '安装包校验完成'
+                                  : updateDownload.status === 'cancelled'
+                                    ? '更新下载已取消'
+                                    : updateDownload.status === 'error'
+                                      ? '更新下载失败'
+                                      : updateDownload.status === 'launching'
+                                        ? '正在启动安装程序…'
+                                        : '安装程序已启动，请按提示完成更新。')}
+                            </span>
+                            {updateDownload.status === 'downloading' && (
+                              <em>
+                                {formatBytes(updateDownload.transferredBytes)} / {formatBytes(updateDownload.totalBytes)}
+                                {updateDownload.bytesPerSecond > 0 ? ` · ${formatBytes(updateDownload.bytesPerSecond)}/s` : ''}
+                              </em>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {updateDownload.error && <p className="about-update-error" role="alert">{updateDownload.error}</p>}
+                      <div className="about-update-download-actions">
+                        {updateResult.installer && (updateDownload.status === 'idle' || updateDownload.status === 'error' || updateDownload.status === 'cancelled') && (
+                          <button className="connect-button compact" type="button" onClick={() => { void downloadAppUpdate() }}>
+                            <Download size={14} />{t(updateDownload.status === 'idle' ? '下载更新' : '重新下载')}
+                          </button>
+                        )}
+                        {updateDownload.status === 'downloading' && (
+                          <button className="ghost-button compact" type="button" onClick={() => { void cancelAppUpdateDownload() }}>
+                            <X size={14} />{t('取消下载')}
+                          </button>
+                        )}
+                        {(updateDownload.status === 'ready' || updateDownload.status === 'launching') && (
+                          <button className="connect-button compact" type="button" disabled={updateDownload.status === 'launching'} onClick={() => { void launchAppUpdate() }}>
+                            <PackageOpen size={14} />{t(updateDownload.status === 'launching' ? '正在启动…' : '打开安装程序')}
+                          </button>
+                        )}
+                        {updateResult.releaseUrl && (
+                          <button className="ghost-button compact" type="button" onClick={() => {
+                            if (updateResult.releaseUrl) void openExternalUrl(updateResult.releaseUrl)
+                          }}>
+                            <ExternalLink size={14} />{t('查看发布说明')}
+                          </button>
+                        )}
+                      </div>
+                      {updateResult.installer && (
+                        <small className="about-update-safety-note">{t('下载后会自动核对文件大小与 SHA-256；安装仍需由你确认，不会静默覆盖。')}</small>
+                      )}
+                    </div>
+                  )}
                 </section>
 
                 <div className="about-resource-grid">

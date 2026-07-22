@@ -1099,6 +1099,105 @@ html[data-appearance='light'] .wave-layout-drop-preview {
   white-space: pre-wrap;
 }
 
+.about-update-download {
+  display: grid;
+  gap: 9px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.about-update-package,
+.about-update-progress-meta,
+.about-update-download-actions {
+  display: flex;
+  align-items: center;
+}
+
+.about-update-package {
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+}
+
+.about-update-package span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.about-update-package span svg { flex: 0 0 auto; color: var(--success); }
+.about-update-package em { flex: 0 0 auto; color: var(--text-secondary); font-family: var(--font-mono); font-style: normal; }
+
+.about-update-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.about-update-progress-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.about-update-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: width 180ms var(--ease);
+}
+
+.about-update-progress.status-ready .about-update-progress-track span,
+.about-update-progress.status-launched .about-update-progress-track span { background: var(--success); }
+
+.about-update-progress-meta {
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+}
+
+.about-update-progress-meta em {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-style: normal;
+}
+
+.about-update-error {
+  margin: 0;
+  border-radius: 6px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.about-update-download-actions {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.about-update-download-actions .connect-button.compact,
+.about-update-download-actions .ghost-button.compact {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.about-update-safety-note {
+  color: var(--text-disabled);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
 .about-resource-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);

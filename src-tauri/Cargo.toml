@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "0.2.0"
 description = "面向 Windows 的开源服务器工作台，集成 SSH、文件管理、监控、进程与远程桌面"
 authors = ["XunDuTerminal Contributors"]
 license = "MIT"
@@ -30,6 +30,7 @@ portable-pty = "0.8"
 rfd = "0.15"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 semver = "1.0"
+sha2 = "0.10"
 ironrdp-client = { version = "0.1.0", features = ["native-tls", "clipboard"] }
 ironrdp = { version = "0.17.0", features = ["input"] }
 ironrdp-cliprdr = "0.7.0"
