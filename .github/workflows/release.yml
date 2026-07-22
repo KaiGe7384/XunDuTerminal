@@ -4,12 +4,16 @@ on:
   push:
     tags:
       - "v*"
+  release:
+    types:
+      - published
 
 permissions:
   contents: write
 
 jobs:
   release-windows:
+    if: github.event_name == 'push'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -36,13 +40,61 @@ jobs:
           releaseBody: 发布说明见 CHANGELOG.md。下载后请使用 SHA256SUMS.txt 校验文件完整性；当前安装包尚未签名，Windows SmartScreen 可能显示提示。
           releaseDraft: true
           prerelease: true
-      - name: Generate SHA256 checksums
+      - name: Generate checksums and update manifest
         shell: pwsh
         run: |
-          Get-ChildItem src-tauri/target/release/bundle -Recurse -File |
+          $artifacts = Get-ChildItem src-tauri/target/release/bundle -Recurse -File
+          $artifacts |
             Get-FileHash -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash)  $([IO.Path]::GetFileName($_.Path))" } |
             Set-Content SHA256SUMS.txt
-          gh release upload $env:GITHUB_REF_NAME SHA256SUMS.txt --clobber
+
+          $installer = $artifacts |
+            Where-Object { $_.Name -match '^XunDuTerminal_.+_x64-setup\.exe$' } |
+            Select-Object -First 1
+          if (-not $installer) {
+            throw 'Windows NSIS installer was not produced.'
+          }
+          $tag = $env:GITHUB_REF_NAME
+          $version = $tag.TrimStart('v', 'V')
+          $digest = (Get-FileHash -Algorithm SHA256 $installer.FullName).Hash.ToLowerInvariant()
+          $manifest = [ordered]@{
+            version = $version
+            notes = "XunDuTerminal $version 已发布，详细改动请查看发布说明。"
+            releaseUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$tag"
+            publishedAt = (Get-Date).ToUniversalTime().ToString('o')
+            windows = [ordered]@{
+              url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/$($installer.Name)"
+              sha256 = $digest
+              size = $installer.Length
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 latest.json
+          gh release upload $tag SHA256SUMS.txt latest.json --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-update-manifest:
+    if: github.event_name == 'release' && github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Publish stable update manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          gh release download "$TAG_NAME" --repo "$REPOSITORY" --pattern latest.json
+          manifest_sha="$(gh api "repos/$REPOSITORY/contents/deploy/xunduterminal/latest.json?ref=$DEFAULT_BRANCH" --jq .sha)"
+          manifest_content="$(base64 -w 0 latest.json)"
+          jq -n \
+            --arg message "Publish update manifest for $TAG_NAME" \
+            --arg content "$manifest_content" \
+            --arg sha "$manifest_sha" \
+            --arg branch "$DEFAULT_BRANCH" \
+            '{message: $message, content: $content, sha: $sha, branch: $branch}' > manifest-update.json
+          gh api --method PUT "repos/$REPOSITORY/contents/deploy/xunduterminal/latest.json" --input manifest-update.json

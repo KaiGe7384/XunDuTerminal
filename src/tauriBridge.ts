@@ -176,15 +176,74 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
     case 'local_shell_resize':
     case 'ssh_resize':
       return undefined as T
-    case 'check_app_update':
-      return {
-        currentVersion: '0.1.0',
-        latestVersion: '0.1.0',
-        updateAvailable: false,
-        status: 'current',
-        notes: null,
-        releaseUrl: null,
-      } as T
+    case 'check_app_update': {
+      const available = Boolean((window as typeof window & { __XUNDU_SANDBOX_UPDATE_AVAILABLE__?: boolean }).__XUNDU_SANDBOX_UPDATE_AVAILABLE__)
+      return available
+        ? {
+            currentVersion: '0.2.0',
+            latestVersion: '0.3.0',
+            updateAvailable: true,
+            status: 'available',
+            notes: '稳定性优化与更新流程测试。',
+            releaseUrl: 'https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.3.0',
+            publishedAt: '2026-07-22T00:00:00Z',
+            installer: {
+              url: 'https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.3.0/XunDuTerminal_0.3.0_x64-setup.exe',
+              sha256: '0'.repeat(64),
+              size: 8 * 1024 * 1024,
+            },
+          } as T
+        : {
+            currentVersion: '0.2.0',
+            latestVersion: '0.2.0',
+            updateAvailable: false,
+            status: 'current',
+            notes: null,
+            releaseUrl: null,
+            publishedAt: null,
+            installer: null,
+          } as T
+    }
+    case 'download_app_update': {
+      const transferId = String(args.transferId ?? '')
+      const totalBytes = Number(args.size) || 8 * 1024 * 1024
+      const version = String(args.version ?? '0.3.0')
+      const fileName = `XunDuTerminal_${version}_x64-setup.exe`
+      postSandboxChannel(args.onProgress, {
+        totalBytes,
+        transferredBytes: 0,
+        bytesPerSecond: 0,
+        copiedFiles: 0,
+        totalFiles: 1,
+        currentFile: fileName,
+        completed: false,
+      })
+      for (let step = 1; step <= 4; step += 1) {
+        await delay(70)
+        if (mockCancelledFileDownloads.delete(transferId)) throw new Error('文件下载已取消')
+        postSandboxChannel(args.onProgress, {
+          totalBytes,
+          transferredBytes: totalBytes * step / 4,
+          bytesPerSecond: 4 * 1024 * 1024,
+          copiedFiles: step === 4 ? 1 : 0,
+          totalFiles: 1,
+          currentFile: step === 4 ? '' : fileName,
+          completed: step === 4,
+        })
+      }
+      const installerPath = `C:/Users/sandbox/AppData/Local/com.xundu.terminal/cache/updates/${fileName}`
+      const sandboxWindow = window as typeof window & { __XUNDU_SANDBOX_UPDATE_DOWNLOADS__?: string[] }
+      sandboxWindow.__XUNDU_SANDBOX_UPDATE_DOWNLOADS__ = [...(sandboxWindow.__XUNDU_SANDBOX_UPDATE_DOWNLOADS__ ?? []), installerPath]
+      return { installerPath, totalBytes } as T
+    }
+    case 'launch_app_update': {
+      const sandboxWindow = window as typeof window & { __XUNDU_SANDBOX_UPDATE_LAUNCHES__?: string[] }
+      sandboxWindow.__XUNDU_SANDBOX_UPDATE_LAUNCHES__ = [
+        ...(sandboxWindow.__XUNDU_SANDBOX_UPDATE_LAUNCHES__ ?? []),
+        String(args.installerPath ?? ''),
+      ]
+      return undefined as T
+    }
     case 'open_external_url': {
       const sandboxWindow = window as typeof window & { __XUNDU_SANDBOX_EXTERNAL_URLS__?: string[] }
       sandboxWindow.__XUNDU_SANDBOX_EXTERNAL_URLS__ = [
