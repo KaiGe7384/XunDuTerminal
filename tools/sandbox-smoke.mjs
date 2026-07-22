@@ -889,7 +889,11 @@ try {
   const terminalTextBeforeWorkspaceSwitch = await page.locator('.workspace-layer.active .xterm-rows').last().textContent()
   await page.locator('.task-tab').nth(1).click()
   await page.locator('.task-tab').nth(0).click()
-  await page.waitForTimeout(250)
+  await page.waitForFunction(() => {
+    const terminals = [...document.querySelectorAll('.workspace-layer.active .xterm-rows')]
+    const text = terminals.at(-1)?.textContent ?? ''
+    return text.includes('cd') && text.includes('sandbox stream')
+  }, null, { timeout: 5_000 })
   const terminalTextAfterWorkspaceSwitch = await page.locator('.workspace-layer.active .xterm-rows').last().textContent()
   assert(
     terminalTextBeforeWorkspaceSwitch?.includes('cd')
