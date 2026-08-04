@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows 10 / 11" />
   </p>
   <p>
-    <a href="https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.1.0"><strong>Download pre-release</strong></a>
+    <a href="https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.1"><strong>Download pre-release</strong></a>
     · <a href="#feature-overview">Features</a>
     · <a href="#development-and-builds">Development</a>
     · <a href="https://github.com/KaiGe7384/XunDuTerminal/issues">Report an issue</a>
@@ -75,13 +75,13 @@ XunDuTerminal is built for developers and operators who work with multiple Windo
 
 ## Download and get started
 
-> **Current version: [`v0.1.0` pre-release](https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.1.0)**
+> **Current version: [`v0.2.1` pre-release](https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.1)**
 
 | File | Best for |
 | --- | --- |
-| [`XunDuTerminal_0.1.0_x64-setup.exe`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.1.0/XunDuTerminal_0.1.0_x64-setup.exe) | Recommended NSIS installer for most users |
-| [`XunDuTerminal_0.1.0_x64_en-US.msi`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.1.0/XunDuTerminal_0.1.0_x64_en-US.msi) | MSI-based deployment environments |
-| [`SHA256SUMS.txt`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.1.0/SHA256SUMS.txt) | Installer integrity verification |
+| [`XunDuTerminal_0.2.1_x64-setup.exe`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/XunDuTerminal_0.2.1_x64-setup.exe) | Recommended NSIS installer for most users |
+| [`XunDuTerminal_0.2.1_x64_en-US.msi`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/XunDuTerminal_0.2.1_x64_en-US.msi) | MSI-based deployment environments |
+| [`SHA256SUMS.txt`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/SHA256SUMS.txt) | Installer integrity verification |
 
 > [!WARNING]
 > The Windows installers are not Authenticode-signed yet, so SmartScreen may display a warning. Back up important connection metadata before testing and download files only from this repository's Releases page.
@@ -89,7 +89,7 @@ XunDuTerminal is built for developers and operators who work with multiple Windo
 Verify an installer in PowerShell:
 
 ```powershell
-Get-FileHash .\XunDuTerminal_0.1.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\XunDuTerminal_0.2.1_x64-setup.exe -Algorithm SHA256
 ```
 
 Compare the result with the matching entry in `SHA256SUMS.txt`.

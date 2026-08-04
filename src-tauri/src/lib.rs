@@ -1472,11 +1472,13 @@ fn local_shell_start_sync(
     rows: Option<u32>,
 ) -> Result<(), String> {
     validate_ssh_part(&session_id, "session id")?;
+    let rows = rows.unwrap_or(30).clamp(8, u16::MAX as u32) as u16;
+    let cols = cols.unwrap_or(120).clamp(20, u16::MAX as u32) as u16;
     let pty_system = native_pty_system();
     let pair = pty_system
         .openpty(PtySize {
-            rows: rows.unwrap_or(30).clamp(8, u16::MAX as u32) as u16,
-            cols: cols.unwrap_or(120).clamp(20, u16::MAX as u32) as u16,
+            rows,
+            cols,
             pixel_width: 0,
             pixel_height: 0,
         })
@@ -1513,6 +1515,10 @@ fn local_shell_start_sync(
         }
     }
 
+    diag_log(
+        "local-shell",
+        format!("started session={session_id} size={cols}x{rows}"),
+    );
     spawn_local_reader(app.clone(), session_id.clone(), reader, "local:data");
 
     let watcher_app = app.clone();
@@ -1544,15 +1550,7 @@ fn local_shell_start_sync(
             }
         };
 
-        let _ = watcher_app.emit(
-            "local:closed",
-            LocalStatusPayload {
-                session_id: watcher_session_id.clone(),
-                message,
-            },
-        );
-
-        if let Ok(mut processes) = watcher_processes.lock() {
+        let should_notify = if let Ok(mut processes) = watcher_processes.lock() {
             let should_remove = processes
                 .get(&watcher_session_id)
                 .map(|process| Arc::ptr_eq(&process.child, &child))
@@ -1560,6 +1558,25 @@ fn local_shell_start_sync(
             if should_remove {
                 processes.remove(&watcher_session_id);
             }
+            should_remove
+        } else {
+            true
+        };
+
+        // A replaced or explicitly invalidated process must not close the new
+        // frontend session when its watcher eventually observes the old child.
+        if should_notify {
+            diag_log(
+                "local-shell",
+                format!("closed session={watcher_session_id} message={message}"),
+            );
+            let _ = watcher_app.emit(
+                "local:closed",
+                LocalStatusPayload {
+                    session_id: watcher_session_id,
+                    message,
+                },
+            );
         }
     });
 
@@ -1572,25 +1589,64 @@ fn local_shell_write(
     session_id: String,
     data: String,
 ) -> Result<(), String> {
-    let process = state
-        .processes
-        .lock()
-        .map_err(|_| "Local shell store is poisoned".to_string())?
-        .get(&session_id)
-        .cloned()
-        .ok_or_else(|| "Local shell is not running".to_string())?;
+    let processes = state.processes.clone();
+    let process = {
+        let processes = processes
+            .lock()
+            .map_err(|_| "Local shell store is poisoned".to_string())?;
+        processes.get(&session_id).cloned()
+    };
+    let Some(process) = process else {
+        diag_log(
+            "local-shell",
+            format!("write-rejected session={session_id} reason=not-running"),
+        );
+        return Err("LOCAL_SHELL_STALE: Local shell is not running".into());
+    };
 
     let mut writer = process
         .writer
         .lock()
         .map_err(|_| "Local shell stdin lock failed".to_string())?;
-    writer
+    let result = writer
         .write_all(data.as_bytes())
-        .map_err(|error| format!("Local shell write failed: {error}"))?;
-    writer
-        .flush()
-        .map_err(|error| format!("Local shell flush failed: {error}"))?;
-    Ok(())
+        .and_then(|_| writer.flush());
+    drop(writer);
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let error_kind = error.kind();
+            let os_code = error.raw_os_error();
+            let stale_process = {
+                let mut processes = processes
+                    .lock()
+                    .map_err(|_| "Local shell store is poisoned".to_string())?;
+                let is_current = processes
+                    .get(&session_id)
+                    .map(|current| Arc::ptr_eq(&current.child, &process.child))
+                    .unwrap_or(false);
+                is_current.then(|| processes.remove(&session_id)).flatten()
+            };
+            let invalidated = stale_process.is_some();
+
+            if let Some(stale_process) = stale_process {
+                if let Ok(mut child) = stale_process.child.lock() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+            }
+            diag_log(
+                "local-shell",
+                format!(
+                    "write-failed session={session_id} kind={error_kind:?} os_code={os_code:?} invalidated={invalidated}"
+                ),
+            );
+            Err(format!(
+                "LOCAL_SHELL_STALE: Local shell connection is no longer available ({error})"
+            ))
+        }
+    }
 }
 
 #[tauri::command]
@@ -1638,6 +1694,7 @@ fn local_shell_stop(state: State<LocalShellSessions>, session_id: String) -> Res
             .map_err(|_| "Local shell lock failed".to_string())?;
         let _ = child.kill();
         let _ = child.wait();
+        diag_log("local-shell", format!("stopped session={session_id}"));
     }
 
     Ok(())

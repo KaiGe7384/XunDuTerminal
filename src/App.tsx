@@ -164,7 +164,7 @@ type AppUpdateDownloadResult = {
   totalBytes: number
 }
 
-const APP_VERSION = '0.2.0'
+const APP_VERSION = '0.2.1'
 const XUNDU_WEBSITE_URL = 'https://xunduyun.com/'
 const TECHNICAL_QQ_GROUPS = [
   {
@@ -530,6 +530,7 @@ const MAX_APP_BACKGROUND_TRANSPARENCY = 45
 const REMOTE_TERMINAL_RESIZE_DEBOUNCE_MS = 140
 const REMOTE_TERMINAL_RECONNECT_DELAYS_MS = [2000, 4000, 8000, 15000, 30000] as const
 const REMOTE_TERMINAL_CONNECT_REQUEST_EVENT = 'xundu:ssh-connect-request'
+const LOCAL_TERMINAL_NOTICE_EVENT = 'xundu:local-terminal-notice'
 const ENABLE_REMOTE_XTERM_WEBGL = false
 const AUX_WIDGET_MOUNT_DELAY_MS = 250
 const REMOTE_AUX_AFTER_CONNECT_DELAY_MS = 0
@@ -566,6 +567,7 @@ const remoteTerminalStatusCache = new Map<string, string>()
 const remoteDesktopAutoConnectWidgets = new Set<string>()
 const localTerminalOutputCache = new Map<string, string>()
 const localTerminalRunningSessions = new Set<string>()
+const localTerminalRecoveryRequests = new Map<string, Promise<void>>()
 const localTerminalStopTimers = new Map<string, number>()
 const terminalControllers = new Map<string, TerminalController>()
 const cliToolCache = new Map<string, { expiresAt: number; tools: CliToolInfo[] }>()
@@ -1031,6 +1033,15 @@ function App() {
     const openTransferManager = () => setTransferManagerOpen(true)
     window.addEventListener(FILE_TRANSFER_MANAGER_OPEN_EVENT, openTransferManager)
     return () => window.removeEventListener(FILE_TRANSFER_MANAGER_OPEN_EVENT, openTransferManager)
+  }, [])
+
+  useEffect(() => {
+    const showLocalTerminalNotice = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail
+      if (message) setToast(message)
+    }
+    window.addEventListener(LOCAL_TERMINAL_NOTICE_EVENT, showLocalTerminalNotice)
+    return () => window.removeEventListener(LOCAL_TERMINAL_NOTICE_EVENT, showLocalTerminalNotice)
   }, [])
 
   useEffect(() => {
@@ -5464,6 +5475,7 @@ function LocalTerminalWidget({
   const writeQueueRef = useRef('')
   const writeFrameRef = useRef<number | null>(null)
   const fitFrameRef = useRef<number | null>(null)
+  const recoverTerminalRef = useRef<(reason: unknown) => Promise<void>>(() => Promise.resolve())
   const [terminalMenu, setTerminalMenu] = useState<ContextMenuState>(null)
 
   useEffect(() => {
@@ -5516,15 +5528,74 @@ function LocalTerminalWidget({
       terminal.write(initialOutput)
     }
 
+    const recoverLocalTerminal = (reason: unknown) => {
+      const pendingRecovery = localTerminalRecoveryRequests.get(shellSessionId)
+      if (pendingRecovery) return pendingRecovery
+
+      localTerminalRunningSessions.delete(shellSessionId)
+      diag('local-shell', `recovery-start session=${shellSessionId} stale=${isLocalShellStaleError(reason)}`)
+      const recovery = (async () => {
+        try {
+          await invoke('local_shell_stop', { sessionId: shellSessionId }).catch(() => undefined)
+          await invoke('local_shell_start', {
+            sessionId: shellSessionId,
+            cols: terminalRef.current?.cols ?? 120,
+            rows: terminalRef.current?.rows ?? 30,
+          })
+          localTerminalRunningSessions.add(shellSessionId)
+          const message = '本地终端已自动恢复，请重新执行 adb shell。'
+          const output = `\r\n\x1b[93m${message}\x1b[0m\r\n`
+          appendTerminalOutputCache(localTerminalOutputCache, shellSessionId, output)
+          terminalRef.current?.write(output)
+          window.dispatchEvent(new CustomEvent<string>(LOCAL_TERMINAL_NOTICE_EVENT, { detail: message }))
+          diag('local-shell', `recovery-complete session=${shellSessionId}`)
+        } catch (error) {
+          localTerminalRunningSessions.delete(shellSessionId)
+          const message = `本地终端恢复失败：${String(error)}`
+          const output = `\r\n\x1b[91m${message}\x1b[0m\r\n`
+          appendTerminalOutputCache(localTerminalOutputCache, shellSessionId, output)
+          terminalRef.current?.write(output)
+          window.dispatchEvent(new CustomEvent<string>(LOCAL_TERMINAL_NOTICE_EVENT, { detail: message }))
+          diag('local-shell', `recovery-failed session=${shellSessionId} message=${String(error)}`)
+        }
+      })()
+      localTerminalRecoveryRequests.set(shellSessionId, recovery)
+      void recovery.then(() => {
+        if (localTerminalRecoveryRequests.get(shellSessionId) === recovery) {
+          localTerminalRecoveryRequests.delete(shellSessionId)
+        }
+      })
+      return recovery
+    }
+    recoverTerminalRef.current = recoverLocalTerminal
+
     const sendLocalTerminalInput = (data: string) => {
+      if (localTerminalRecoveryRequests.has(shellSessionId)) return
       void invoke('local_shell_write', { sessionId: shellSessionId, data }).catch((error) => {
+        if (isLocalShellStaleError(error)) {
+          void recoverLocalTerminal(error)
+          return
+        }
         terminal.writeln(`\r\n\x1b[91m写入失败：${String(error)}\x1b[0m`)
       })
     }
     const controller: TerminalController = {
       kind: 'local',
       isReady: () => localTerminalRunningSessions.has(shellSessionId),
-      write: (data) => invoke('local_shell_write', { sessionId: shellSessionId, data }),
+      write: async (data) => {
+        const pendingRecovery = localTerminalRecoveryRequests.get(shellSessionId)
+        if (pendingRecovery) {
+          await pendingRecovery
+          throw new Error('本地终端连接已恢复，请重新执行命令')
+        }
+        try {
+          await invoke('local_shell_write', { sessionId: shellSessionId, data })
+        } catch (error) {
+          if (!isLocalShellStaleError(error)) throw error
+          await recoverLocalTerminal(error)
+          throw new Error('本地终端连接已恢复，请重新执行命令')
+        }
+      },
       clear: () => terminal.clear(),
       focus: () => {
         terminal.focus()
@@ -5561,8 +5632,13 @@ function LocalTerminalWidget({
       fitAddonRef.current = null
       const stopTimer = window.setTimeout(() => {
         localTerminalStopTimers.delete(shellSessionId)
-        localTerminalRunningSessions.delete(shellSessionId)
-        void invoke('local_shell_stop', { sessionId: shellSessionId })
+        const stopSession = () => {
+          localTerminalRunningSessions.delete(shellSessionId)
+          void invoke('local_shell_stop', { sessionId: shellSessionId })
+        }
+        const recovery = localTerminalRecoveryRequests.get(shellSessionId)
+        if (recovery) void recovery.then(stopSession)
+        else stopSession()
       }, 500)
       localTerminalStopTimers.set(shellSessionId, stopTimer)
     }
@@ -5580,12 +5656,18 @@ function LocalTerminalWidget({
       }).catch(() => () => undefined),
       listen<LocalEventPayload>('local:error', (event) => {
         if (event.payload.session_id !== sessionIdRef.current) return
+        if (isLocalShellStaleError(event.payload.message)) {
+          void recoverTerminalRef.current(event.payload.message)
+          return
+        }
         const data = `\r\n\x1b[91m${event.payload.message ?? 'Local shell error'}\x1b[0m\r\n`
         appendTerminalOutputCache(localTerminalOutputCache, sessionIdRef.current, data)
         terminalRef.current?.write(data)
       }).catch(() => () => undefined),
       listen<LocalEventPayload>('local:closed', (event) => {
         if (event.payload.session_id !== sessionIdRef.current) return
+        localTerminalRunningSessions.delete(shellSessionId)
+        diag('local-shell', `closed session=${shellSessionId} message=${event.payload.message ?? 'unknown'}`)
         const data = `\r\n\x1b[93m${event.payload.message ?? 'Local shell closed'}\x1b[0m\r\n`
         appendTerminalOutputCache(localTerminalOutputCache, sessionIdRef.current, data)
         terminalRef.current?.write(data)
@@ -5603,6 +5685,7 @@ function LocalTerminalWidget({
         rows: terminal?.rows ?? 30,
       }).catch((error) => {
         localTerminalRunningSessions.delete(shellSessionId)
+        diag('local-shell', `start-failed session=${shellSessionId} message=${String(error)}`)
         const data = `\r\n\x1b[91m启动失败：${String(error)}\x1b[0m\r\n`
         appendTerminalOutputCache(localTerminalOutputCache, shellSessionId, data)
         terminalRef.current?.write(data)
@@ -10716,6 +10799,11 @@ function diag(scope: string, message: string) {
   const line = `${Math.round(performance.now())} ${message}`
   console.debug(`[diag:${scope}] ${line}`)
   void invoke('diag_log_frontend', { scope, message: line }).catch(() => undefined)
+}
+
+function isLocalShellStaleError(error: unknown) {
+  return /LOCAL_SHELL_STALE|local shell is not running|broken pipe|pipe (?:is being closed|has been ended)|管道.*(?:关闭|结束)|os error (?:109|232)/i
+    .test(String(error ?? ''))
 }
 
 function getRemoteTerminalPreview(value: string) {

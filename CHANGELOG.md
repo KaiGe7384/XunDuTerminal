@@ -4,6 +4,15 @@ All notable changes to XunDuTerminal will be documented here. The project follow
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-04
+
+### Fixed
+
+- Recover the local terminal automatically after a closed ConPTY pipe or Windows error 232.
+- Prevent failed input from being replayed into the replacement shell and deduplicate concurrent recovery attempts.
+- Clear stale local-terminal session state and suppress obsolete close events from replaced processes.
+- Record local-terminal start, close, write failure, stop, and recovery diagnostics.
+
 ## [0.2.0] - 2026-07-22
 
 ### Added

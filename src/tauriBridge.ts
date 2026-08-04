@@ -180,7 +180,7 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
       const available = Boolean((window as typeof window & { __XUNDU_SANDBOX_UPDATE_AVAILABLE__?: boolean }).__XUNDU_SANDBOX_UPDATE_AVAILABLE__)
       return available
         ? {
-            currentVersion: '0.2.0',
+            currentVersion: '0.2.1',
             latestVersion: '0.3.0',
             updateAvailable: true,
             status: 'available',
@@ -194,8 +194,8 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
             },
           } as T
         : {
-            currentVersion: '0.2.0',
-            latestVersion: '0.2.0',
+            currentVersion: '0.2.1',
+            latestVersion: '0.2.1',
             updateAvailable: false,
             status: 'current',
             notes: null,
@@ -352,12 +352,22 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
         mockEntry('C:\\', 'C:\\', true, 256 * 1024 * 1024 * 1024, 0, '本地磁盘'),
         mockEntry('F:\\', 'F:\\', true, 512 * 1024 * 1024 * 1024, 1, '本地磁盘'),
       ] as T
-    case 'local_shell_start':
+    case 'local_shell_start': {
+      const sandboxWindow = window as typeof window & { __XUNDU_SANDBOX_LOCAL_STARTS__?: number }
+      sandboxWindow.__XUNDU_SANDBOX_LOCAL_STARTS__ = (sandboxWindow.__XUNDU_SANDBOX_LOCAL_STARTS__ ?? 0) + 1
       startMockLocalShell(String(args.sessionId ?? 'local'))
       return undefined as T
-    case 'local_shell_write':
+    }
+    case 'local_shell_write': {
+      const sandboxWindow = window as typeof window & { __XUNDU_SANDBOX_LOCAL_WRITE_FAILURES_REMAINING__?: number }
+      const failuresRemaining = sandboxWindow.__XUNDU_SANDBOX_LOCAL_WRITE_FAILURES_REMAINING__ ?? 0
+      if (failuresRemaining > 0) {
+        sandboxWindow.__XUNDU_SANDBOX_LOCAL_WRITE_FAILURES_REMAINING__ = failuresRemaining - 1
+        throw new Error('LOCAL_SHELL_STALE: 管道正在被关闭。(os error 232)')
+      }
       writeMockLocalShell(String(args.sessionId ?? 'local'), String(args.data ?? ''))
       return undefined as T
+    }
     case 'local_shell_stop':
       emitSandbox('local:closed', {
         session_id: String(args.sessionId ?? 'local'),

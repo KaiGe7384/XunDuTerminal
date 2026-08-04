@@ -147,7 +147,7 @@ try {
   await page.locator('.settings-nav button').filter({ hasText: '关于' }).click()
   const aboutText = await page.locator('.settings-pane').innerText()
   assert(!/Codex Dream Skin|MIT|开源项目/.test(aboutText), `about section still exposed theme source copy: ${aboutText}`)
-  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.2.0'), 'about section did not show product identity and version')
+  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.2.1'), 'about section did not show product identity and version')
   assert(aboutText.includes('https://xunduyun.com/'), 'about section did not show the enterprise server website')
   assert(aboutText.includes('1090339570') && aboutText.includes('262430517'), 'about section did not show both technical QQ groups')
   assert(!aboutText.includes('前往官网'), 'update section still exposed the retired website fallback')
@@ -633,6 +633,31 @@ try {
 
   const localTerminal = page.locator('.remote-session-local-terminal').first()
   const localTerminalScreen = localTerminal.locator('.xterm-screen')
+  const localRecoveryBaseline = await page.evaluate(() => ({
+    starts: window.__XUNDU_SANDBOX_LOCAL_STARTS__ ?? 0,
+    writes: (window.__XUNDU_SANDBOX_LOCAL_WRITES__ ?? []).length,
+  }))
+  await page.evaluate(() => { window.__XUNDU_SANDBOX_LOCAL_WRITE_FAILURES_REMAINING__ = 2 })
+  await localTerminal.locator('.xterm-helper-textarea').focus()
+  await page.keyboard.type('su')
+  await page.waitForFunction(
+    (baseline) => (window.__XUNDU_SANDBOX_LOCAL_STARTS__ ?? 0) === baseline + 1,
+    localRecoveryBaseline.starts,
+  )
+  await page.locator('.app-toast').filter({ hasText: '本地终端已自动恢复，请重新执行 adb shell。' }).waitFor()
+  const localRecoveryState = await page.evaluate((baseline) => {
+    const output = document.querySelector('.remote-session-local-terminal .xterm-rows')?.textContent ?? ''
+    return {
+      starts: window.__XUNDU_SANDBOX_LOCAL_STARTS__ ?? 0,
+      failedInputWasReplayed: (window.__XUNDU_SANDBOX_LOCAL_WRITES__ ?? [])
+        .slice(baseline.writes)
+        .some((write) => write.data.includes('s') || write.data.includes('u')),
+      recoveryMessages: output.split('本地终端已自动恢复，请重新执行 adb shell。').length - 1,
+    }
+  }, localRecoveryBaseline)
+  assert(localRecoveryState.starts === localRecoveryBaseline.starts + 1, `stale local PTY triggered duplicate recovery starts: ${JSON.stringify(localRecoveryState)}`)
+  assert(!localRecoveryState.failedInputWasReplayed, `failed local terminal input was replayed after recovery: ${JSON.stringify(localRecoveryState)}`)
+  assert(localRecoveryState.recoveryMessages === 1, `local terminal recovery notice was repeated: ${JSON.stringify(localRecoveryState)}`)
   await localTerminalScreen.click()
   await localTerminalScreen.click({ button: 'right', position: { x: 24, y: 24 } })
   const terminalContextMenu = page.locator('.context-menu')
@@ -1544,6 +1569,7 @@ try {
       'terminal scrollback copy and drawer-safe toolbar actions',
       'terminal right-click copy/paste and selection-aware Ctrl+C',
       'independent right-click and Ctrl+C copy in the second SSH terminal',
+      'single-shot local terminal recovery after a stale ConPTY pipe',
       'light file-editor palette',
       'fresh file read on every editor open',
       'file manager context actions and confirmation dialogs',
