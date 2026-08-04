@@ -1,11 +1,11 @@
 {
-  "version": "0.2.0",
-  "notes": "XunDuTerminal 0.2.0：新增安全更新下载、进度显示、取消与重试、安装包大小及 SHA-256 校验，并支持用户确认后启动安装程序。",
-  "releaseUrl": "https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.0",
-  "publishedAt": "2026-07-22T09:26:46Z",
+  "version": "0.2.1",
+  "notes": "XunDuTerminal 0.2.1：修复 adb shell 或 ConPTY 管道关闭后本地终端持续报错的问题，支持失效会话自动清理与单次恢复，并避免故障输入重放到新终端。",
+  "releaseUrl": "https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.1",
+  "publishedAt": "2026-08-04T07:41:45Z",
   "windows": {
-    "url": "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.0/XunDuTerminal_0.2.0_x64-setup.exe",
-    "sha256": "f4aa6f297984cb333c496ca308b27869fb668fe4a4b691230d07cff781a2cd33",
-    "size": 5892413
+    "url": "https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/XunDuTerminal_0.2.1_x64-setup.exe",
+    "sha256": "c08944aadd028000bbbd09b86e06197cc3684952ee90436670573a06f8032758",
+    "size": 5898307
   }
 }
