@@ -565,6 +565,7 @@ try {
   await page.evaluate(() => { window.__XUNDU_SANDBOX_APP_RENDERS__ = 0 })
   await globalSearch.pressSequentially('192.0.2.201', { delay: 4 })
   await page.locator('.global-search-popover').waitFor({ state: 'visible' })
+  await page.waitForFunction(() => document.querySelectorAll('.global-search-result').length === 1)
   assert(await page.locator('.global-search-result').count() === 1, 'global search did not narrow the connection results')
   assert((await page.locator('.global-search-result').textContent())?.includes('192.0.2.201'), 'global search returned the wrong server')
   assert(await page.locator('.app-shell').getAttribute('class') === drawerStateBeforeSearch, 'typing in global search changed the workspace drawer layout')
