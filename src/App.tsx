@@ -164,7 +164,7 @@ type AppUpdateDownloadResult = {
   totalBytes: number
 }
 
-const APP_VERSION = '0.2.1'
+const APP_VERSION = '0.2.2'
 const XUNDU_WEBSITE_URL = 'https://xunduyun.com/'
 const TECHNICAL_QQ_GROUPS = [
   {
@@ -7346,7 +7346,7 @@ function FileManagerWidget({
   const parentPath = useMemo(() => {
     if (!remoteArgs && path === LOCAL_DRIVES_PATH) return ''
     if (!remoteArgs && isWindowsDriveRoot(path)) return LOCAL_DRIVES_PATH
-    return getParentPath(path)
+    return remoteArgs ? getRemoteParentPath(path) : getParentPath(path)
   }, [path, remoteArgs])
 
   function goParent() {
@@ -11295,12 +11295,23 @@ function widgetIcon(type: WorkbenchWidgetType) {
 function getParentPath(path: string) {
   if (!path) return ''
   const normalized = path.replace(/[\\/]+$/, '')
+  if (normalized.startsWith('/')) {
+    if (!normalized || normalized === '/') return '/'
+    const separatorIndex = normalized.lastIndexOf('/')
+    return separatorIndex <= 0 ? '/' : normalized.slice(0, separatorIndex)
+  }
   const separatorIndex = Math.max(normalized.lastIndexOf('\\'), normalized.lastIndexOf('/'))
   if (separatorIndex <= 0) return path
   if (/^[A-Za-z]:$/.test(normalized.slice(0, separatorIndex))) {
     return `${normalized.slice(0, separatorIndex)}\\`
   }
   return normalized.slice(0, separatorIndex)
+}
+
+function getRemoteParentPath(path: string) {
+  const normalized = path.trim().replace(/[\\/]+$/, '')
+  if (normalized === '~' || normalized === '/root') return '/'
+  return getParentPath(path)
 }
 
 function isWindowsDriveRoot(path: string) {

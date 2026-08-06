@@ -147,7 +147,7 @@ try {
   await page.locator('.settings-nav button').filter({ hasText: '关于' }).click()
   const aboutText = await page.locator('.settings-pane').innerText()
   assert(!/Codex Dream Skin|MIT|开源项目/.test(aboutText), `about section still exposed theme source copy: ${aboutText}`)
-  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.2.1'), 'about section did not show product identity and version')
+  assert(aboutText.includes('XunDuTerminal') && aboutText.includes('v0.2.2'), 'about section did not show product identity and version')
   assert(aboutText.includes('https://xunduyun.com/'), 'about section did not show the enterprise server website')
   assert(aboutText.includes('1090339570') && aboutText.includes('262430517'), 'about section did not show both technical QQ groups')
   assert(!aboutText.includes('前往官网'), 'update section still exposed the retired website fallback')
@@ -1434,6 +1434,21 @@ try {
     remoteListSuccessesBeforeKexRetry,
   )
   await kexRetryFeedback.waitFor({ state: 'hidden' })
+  const remoteFileAddress = finalFilePanel.locator('.file-address-input')
+  const remoteParentButton = finalFilePanel.getByRole('button', { name: '返回上一页' })
+  assert(await remoteFileAddress.inputValue() === '/root', `remote file manager did not start at the SSH user's home: ${await remoteFileAddress.inputValue()}`)
+  await remoteParentButton.click()
+  await page.waitForFunction((input) => input?.value === '/', await remoteFileAddress.elementHandle())
+  assert(await remoteFileAddress.inputValue() === '/', `remote file manager could not navigate from /root to /: ${await remoteFileAddress.inputValue()}`)
+  assert(await remoteParentButton.isDisabled(), 'remote file manager did not keep the root parent button disabled')
+  await remoteFileAddress.fill('~')
+  await remoteFileAddress.press('Enter')
+  await page.waitForFunction((input) => input?.value === '/root', await remoteFileAddress.elementHandle())
+  assert(await remoteParentButton.isEnabled(), 'remote file manager did not expose the parent button after resolving ~ to /root')
+  await remoteFileAddress.fill('/')
+  await remoteFileAddress.press('Enter')
+  await page.waitForFunction((input) => input?.value === '/', await remoteFileAddress.elementHandle())
+  assert(await remoteFileAddress.inputValue() === '/', 'remote file manager direct root path submission did not stay at /')
   await page.setViewportSize({ width: 1482, height: 922 })
 
   const filePanelBox = await finalFilePanel.boundingBox()
@@ -1579,6 +1594,7 @@ try {
       'native multi-file and recursive folder drop into the remote file manager',
       'automatic SSH host key confirmation, small-window containment, and safe replacement retry',
       'automatic file-channel KEX retry with compact Chinese feedback',
+      'remote file-manager navigation from /root to the Unix root directory',
       'unified transfer history with credential-free persistence',
       'task center removal without transfer regression',
       'isolated global SSH/RDP search with keyboard navigation',

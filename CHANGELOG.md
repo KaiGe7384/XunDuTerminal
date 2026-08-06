@@ -4,6 +4,13 @@ All notable changes to XunDuTerminal will be documented here. The project follow
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-06
+
+### Fixed
+
+- Restore the parent-directory action in the remote file manager when the current directory is `/root` or `~`.
+- Allow direct navigation to the Unix root directory `/` while keeping its parent action disabled.
+
 ## [0.2.1] - 2026-08-04
 
 ### Fixed

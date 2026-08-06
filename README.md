@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows11&logoColor=white" alt="Windows 10 / 11" />
   </p>
   <p>
-    <a href="https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.1"><strong>下载预发布版</strong></a>
+    <a href="https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.2"><strong>下载预发布版</strong></a>
     · <a href="#功能概览">功能概览</a>
     · <a href="#开发与构建">本地开发</a>
     · <a href="https://github.com/KaiGe7384/XunDuTerminal/issues">问题反馈</a>
@@ -75,13 +75,13 @@ XunDuTerminal 面向需要频繁管理多台 Windows / Linux 服务器的开发�
 
 ## 下载并开始使用
 
-> **当前版本：[`v0.2.1` 预发布版](https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.1)**
+> **当前版本：[`v0.2.2` 预发布版](https://github.com/KaiGe7384/XunDuTerminal/releases/tag/v0.2.2)**
 
 | 文件 | 用途 |
 | --- | --- |
-| [`XunDuTerminal_0.2.1_x64-setup.exe`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/XunDuTerminal_0.2.1_x64-setup.exe) | 推荐，大多数用户选择此 NSIS 安装包 |
-| [`XunDuTerminal_0.2.1_x64_en-US.msi`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/XunDuTerminal_0.2.1_x64_en-US.msi) | 适合需要 MSI 部署方式的环境 |
-| [`SHA256SUMS.txt`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.1/SHA256SUMS.txt) | 校验安装包完整性 |
+| [`XunDuTerminal_0.2.2_x64-setup.exe`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.2/XunDuTerminal_0.2.2_x64-setup.exe) | 推荐，大多数用户选择此 NSIS 安装包 |
+| [`XunDuTerminal_0.2.2_x64_en-US.msi`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.2/XunDuTerminal_0.2.2_x64_en-US.msi) | 适合需要 MSI 部署方式的环境 |
+| [`SHA256SUMS.txt`](https://github.com/KaiGe7384/XunDuTerminal/releases/download/v0.2.2/SHA256SUMS.txt) | 校验安装包完整性 |
 
 > [!WARNING]
 > 当前安装包尚未进行 Authenticode 签名，Windows SmartScreen 可能显示安全提示。测试前请备份重要连接配置，并从本仓库 Releases 下载文件。
@@ -89,7 +89,7 @@ XunDuTerminal 面向需要频繁管理多台 Windows / Linux 服务器的开发�
 使用 PowerShell 校验安装包：
 
 ```powershell
-Get-FileHash .\XunDuTerminal_0.2.1_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\XunDuTerminal_0.2.2_x64-setup.exe -Algorithm SHA256
 ```
 
 将输出与 `SHA256SUMS.txt` 中对应文件的哈希值进行比较。

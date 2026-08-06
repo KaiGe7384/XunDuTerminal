@@ -180,7 +180,7 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
       const available = Boolean((window as typeof window & { __XUNDU_SANDBOX_UPDATE_AVAILABLE__?: boolean }).__XUNDU_SANDBOX_UPDATE_AVAILABLE__)
       return available
         ? {
-            currentVersion: '0.2.1',
+            currentVersion: '0.2.2',
             latestVersion: '0.3.0',
             updateAvailable: true,
             status: 'available',
@@ -194,8 +194,8 @@ async function mockInvoke<T>(command: string, args: Record<string, unknown>): Pr
             },
           } as T
         : {
-            currentVersion: '0.2.1',
-            latestVersion: '0.2.1',
+            currentVersion: '0.2.2',
+            latestVersion: '0.2.2',
             updateAvailable: false,
             status: 'current',
             notes: null,
